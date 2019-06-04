@@ -21,4 +21,7 @@ The Nifty Token Standard is a lightweight, scalable, and manageable game-based N
    **Open Licensing**: this setting allows any user to reserve a license slot for an NFT for free (not counting RAM costs). This setting is desirable if asset creators want their NFTs to be heavily modifiable and open for all asset creators to use.
 
    **Disabled Licensing**: this setting disables new license additions entirely. This feature is desirable for token creators who want to maintain full control of all NFT assets.
-   
+
+## Token Templates
+
+

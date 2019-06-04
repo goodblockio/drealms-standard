@@ -15,4 +15,4 @@ fi
 # -R=<string>              - Add a resource path for inclusion
 
 #eosio.cdt v1.5.0
-eosio-cpp -I="./$contract/include/" -R="./$contract/resources" -o="./build/$contract/$contract.wasm" -contract="Grassroots" -abigen ./$contract/src/$contract.cpp
+eosio-cpp -I="./$contract/include/" -R="./$contract/resources" -o="./build/$contract/$contract.wasm" -contract="nifty" -abigen ./$contract/src/$contract.cpp

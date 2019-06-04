@@ -6,7 +6,7 @@ nifty::~nifty() {}
 
 //======================== nonfungible actions ========================
 
-ACTION create(name token_name, name creator) {
+ACTION nifty::create(name token_name, name creator, name licensing) {
     //authenticate
     require_auth(creator);
 
@@ -16,28 +16,156 @@ ACTION create(name token_name, name creator) {
 
     //validate
     check(st == stats.end(), "token name already exists");
-
-    //get licenses table
-    licenses_table licenses(get_self(), get_self().value);
-    auto li = licenses.find(token_name);
+    check(is_valid_licensing(licensing), "invalid licensing type");
     
     //emplace new stats
-    stats.emplace(get_self(), [&](auto& row) {
+    stats.emplace(creator, [&](auto& row) {
         row.token_name = token_name;
         row.creator = creator;
+        row.licensing = licensing;
     });
 
+    //get licenses table
+    licenses_table licenses(get_self(), token_name.value);
+    auto li = licenses.find(creator.value);
+
     //emplace new license slot
-    licenses.emplace(get_self(), [&](auto& row) {
+    licenses.emplace(creator, [&](auto& row) {
         row.owner = creator;
+        row.base_uri = "";
     });
 }
 
-//========== functions ==========
+ACTION nifty::issue(name recipient, name token_name, string query_string, string memo) {
+    //get stats table
+    stats_table stats(get_self(), get_self().value);
+    auto& st = stats.get(token_name.value, "token name not found");
+
+    //authenticate
+    require_auth(st.creator);
+
+    //validate
+    check(is_account(recipient), "recipient account does not exist");
+
+    //get nonfungibles table
+    nonfungibles_table nfts(get_self(), token_name.value);
+
+    //emplace new NFT
+    nfts.emplace(st.creator, [&](auto& row) {
+        row.serial = nfts.available_primary_key();
+        row.owner = recipient;
+        row.query_string = query_string;
+    });
+
+    //TODO: issue to creator, then inline transfer to recipient
+
+}
+
+ACTION nifty::transfer(name recipient, name sender, name token_name, vector<uint64_t> serials, string memo) {
+    //authenticate
+    require_auth(sender);
+
+    //loop over each serial and change ownership
+    for (uint64_t serial : serials) {
+        //get nonfungibles table
+        nonfungibles_table nfts(get_self(), token_name.value);
+        auto& nft = nfts.get(serial, "nft not found");
+
+        //validate
+        check(sender == nft.owner, "only nft owner is allowed to transfer");
+
+        //modify nft ownership to recipient
+        nfts.modify(nft, same_payer, [&](auto& row) {
+            row.owner = recipient;
+        });
+
+    }
+
+}
+
+ACTION nifty::burn(name creator, name token_name, vector<uint64_t> serials, string memo) {
+    //authenticate
+    require_auth(creator);
+
+    //get stats table
+    stats_table stats(get_self(), get_self().value);
+    auto& st = stats.get(token_name.value, "token name not found");
+
+    //validate
+    check(st.creator == creator, "only creator can burn tokens");
+    // check(st.burnable == true, "token name disallows burning");
+
+    //loop over each serial and erase nft
+    for (uint64_t serial : serials) {
+        //get nonfungibles table
+        nonfungibles_table nfts(get_self(), token_name.value);
+        auto& nft = nfts.get(serial, "nft not found");
+
+        //erase nft
+        nfts.erase(nft);
+    }
+}
 
 
 
-//========== reactions ==========
+//======================== licensing actions ========================
+
+ACTION nifty::setlicensing(name token_name, name new_licensing) {
+    //get stats table
+    stats_table stats(get_self(), get_self().value);
+    auto& st = stats.get(token_name.value, "token name not found");
+
+    //authenticate
+    require_auth(st.creator);
+
+    //validate
+    check(is_valid_licensing(new_licensing), "invalid licensing type");
+
+    //TODO: modify licensing info
+    
+}
+
+ACTION nifty::addlicense(name token_name, name owner, string base_uri) {
+    //get stats table
+    stats_table stats(get_self(), get_self().value);
+    auto& st = stats.get(token_name.value, "token name not found");
+
+    //validate
+    check(st.licensing == name("open"), "licensing is not open");
+
+    //TODO: add licensing row
+
+}
+
+ACTION nifty::editlicense(name token_name, name owner, string new_base_uri) {
+    //authenticate
+    require_auth(owner);
+
+    //get licenses table
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(owner.value, "license for owner not found");
+
+    //TODO: modify base uri
+
+}
+
+
+
+//========== helper functions ==========
+
+bool nifty::is_valid_licensing(name licensing) {
+    switch (licensing.value) 
+    {
+    case name("monetary").value :
+        return true;
+    case name("open").value : 
+        return true;
+    case name("disabled").value :
+        return true;
+    default:
+        return false;
+    }
+}
 
 
 
