@@ -1,6 +1,6 @@
 # Nifty Token Standard
 
-The Nifty Token Standard is a lightweight, scalable, and licensable game-based NFT standard for EOSIO software.
+The Nifty Token Standard is a lightweight, scalable, and licensable cross-game NFT standard for EOSIO software.
 
 ## Key Features
 
@@ -26,7 +26,7 @@ The Nifty Token Standard is a lightweight, scalable, and licensable game-based N
 
 * `Creative Control`
 
-    Nifty believes that original asset creators should maintain creative control over the representation of their assets in other games. Whether this means the creator enforces strict asset templating or leaves it wide open for asset developers to use their imagination is entirely up to the original asset creator.
+    Nifty believes that original asset creators should maintain creative control over the representation of their assets in other games. Whether this means the creator enforces strict asset templating or leaves it wide open for developers to use their imaginations, is entirely up to the original asset creator.
 
 ## Manifest Template
 
@@ -36,7 +36,11 @@ The Nifty Manifest Template is used to describe the *format* in which NFT instan
 {
     "version": "1",
     "asset": {
+        "engine": "unity",
         "template": "2dasset",
+        ...
+    },
+    "instance": {
         "class": "creature",
         "subclass": "dragon",
         "customclass": "drakoskeep"

@@ -72,6 +72,8 @@ CONTRACT nifty : public contract {
         name owner;
         string base_uri;
 
+        //TODO: add string manifest;
+
         uint64_t primary_key() const { return owner.value; }
         EOSLIB_SERIALIZE(license, (owner)(base_uri))
     };
