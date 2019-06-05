@@ -28,23 +28,18 @@ The Nifty Token Standard is a lightweight, scalable, and licensable game-based N
 
     Nifty believes that original asset creators should maintain creative control over the representation of their assets in other games. Whether this means the creator enforces strict asset templating or leaves it wide open for asset developers to use their imagination is entirely up to the original asset creator.
 
-## Manifest/Metadata Template
+## Manifest Template
+
+The Nifty Manifest Template is used to describe the *format* in which NFT instance data will be returned to the client.
 
 ```
 {
     "version": "1",
     "asset": {
         "template": "2dasset",
-        "class": "creature"
-    },
-    "class": "creature",
-    "instance": {
-        "strength": "5",
-        "dexterity": "3",
-        "constitution": "8",
-        "intelligence": "7",
-        "wisdom": "2",
-        "charisma": "9"
+        "class": "creature",
+        "subclass": "dragon",
+        "customclass": "drakoskeep"
     },
     "file": "dragon51.2dasset",
     "created": "2019-06-05T19:20:50+00:00",
@@ -110,3 +105,21 @@ The Nifty Token Standard is a lightweight, scalable, and licensable game-based N
     ...
 }
 ```
+
+## Subclass Templates
+
+* `dragon`
+
+```
+{
+    "breath": "fire",
+    "family": "wyvern",
+    ...
+}
+```
+
+## Custom Classes
+
+Custom classes offer for further granularity that allows asset developers to define custom templates for consumption by their individual games. This can be seen as a template for the instance data returned from an NFT query.
+
+Custom classes are not maintained by the community and are created and used on an individual basis, however the community may maintain their own instance templates if they so choose.
