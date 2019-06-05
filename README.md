@@ -24,7 +24,11 @@ The Nifty Token Standard is a lightweight, scalable, and licensable game-based N
 
     **Disabled Licensing**: this setting disables new license additions entirely. This feature is desirable for token creators who want to maintain full control of all NFT assets.
 
-## Metadata Template
+* `Creative Control`
+
+    Nifty believes that original asset creators should maintain creative control over the representation of their assets in other games. Whether this means the creator enforces strict asset templating or leaves it wide open for asset developers to use their imagination is entirely up to the original asset creator.
+
+## Manifest/Metadata Template
 
 ```
 {
