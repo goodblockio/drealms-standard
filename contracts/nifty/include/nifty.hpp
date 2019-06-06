@@ -1,5 +1,5 @@
 /**
- * Nifty is an NFT standard for game-based tokens.
+ * The Nifty Token Standard is a lightweight, scalable, and licensable cross-game NFT standard for EOSIO software.
  * 
  * @author Craig Branscom
  * @contract nifty
@@ -27,9 +27,8 @@ CONTRACT nifty : public contract {
 
     ~nifty();
 
-
+    //constants
     const symbol CORE_SYM = symbol("TLOS", 4);
-    const asset LICENSE_PRICE = asset(5000, CORE_SYM);
 
 
     //======================== tables ========================
@@ -40,17 +39,33 @@ CONTRACT nifty : public contract {
         name token_name;
         name creator;
         name licensing;
-
-        //TODO: add license_price?
-        //TODO: add supply?
-        //TODO: add max_supply?
-        //TODO: add bool burnable;
-        //TODO: add bool transferable;
+        asset license_price; //set to zero if not applicable
+        bool burnable;
+        bool transferable;
+        uint64_t supply;
+        uint64_t max_supply;
 
         uint64_t primary_key() const { return token_name.value; }
-        EOSLIB_SERIALIZE(stats, (token_name)(creator)(licensing))
+        EOSLIB_SERIALIZE(stats, (token_name)(creator)
+            (licensing)(license_price)
+            (burnable)(transferable)
+            (supply)(max_supply))
     };
     typedef multi_index<name("statistics"), stats> stats_table;
+
+    //@scope token_name.value
+    //@ram 
+    TABLE license {
+        name owner;
+        string ati_uri;
+        string base_uri;
+
+        //TODO?: add time_point expiration;
+
+        uint64_t primary_key() const { return owner.value; }
+        EOSLIB_SERIALIZE(license, (owner)(ati_uri)(base_uri))
+    };
+    typedef multi_index<name("licenses"), license> licenses_table;
 
 
     //@scope token_name.value
@@ -66,20 +81,6 @@ CONTRACT nifty : public contract {
     typedef multi_index<name("nonfungibles"), nonfungible> nonfungibles_table;
 
 
-    //@scope token_name.value
-    //@ram 
-    TABLE license {
-        name owner;
-        string base_uri;
-
-        //TODO: add string manifest;
-
-        uint64_t primary_key() const { return owner.value; }
-        EOSLIB_SERIALIZE(license, (owner)(base_uri))
-    };
-    typedef multi_index<name("licenses"), license> licenses_table;
-
-
     //@scope symbol.code().raw()
     //@ram 
     // TABLE fungible {
@@ -93,8 +94,8 @@ CONTRACT nifty : public contract {
 
     //======================== nonfungible actions ========================
 
-    //creates a new token stats row, creator always gets licenses for free
-    ACTION create(name token_name, name creator, name licensing);
+    //creates a new token stats row, initially sets licensing to disabled
+    ACTION create(name token_name, name creator, bool burnable, bool transferable, uint64_t max_supply);
 
     //issues a new NFT token
     ACTION issue(name recipient, name token_name, string query_string, string memo);
@@ -109,14 +110,14 @@ CONTRACT nifty : public contract {
 
     //======================== licensing actions ========================
 
-    //sets new licensing status for a token
-    ACTION setlicensing(name token_name, name new_licensing);
+    //sets new licensing status for a token, and license price if applicable
+    ACTION setlicensing(name token_name, name new_licensing, asset license_price); //TODO: make license_price optional param
 
     //adds a new license to a token with open licensing
-    ACTION addlicense(name token_name, name owner, string base_uri); //TODO: add price, make price and base_uri optional params?
+    ACTION newlicense(name token_name, name owner, string ati_uri, string base_uri);
 
     //edits a current license uri
-    ACTION editlicense(name token_name, name owner, string new_base_uri); //TODO: add new_price, make new_price and new_base_uri optional params?
+    ACTION edituris(name token_name, name owner, string new_ati_uri, string new_base_uri);
 
     //buys a new license for a token, triggered from the eosio.token::transfer action
     // [[eosio::on_notify("eosio.token::transfer")]]
@@ -126,7 +127,7 @@ CONTRACT nifty : public contract {
 
     //========== helper functions ==========
 
-    bool is_valid_licensing(name licensing);
+    bool validate_licensing(name licensing, asset license_price);
 
 
 
