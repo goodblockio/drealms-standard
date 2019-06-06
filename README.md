@@ -28,7 +28,46 @@ The Nifty Token Standard is a lightweight, scalable, and licensable cross-game N
 
     Nifty believes that original asset creators should maintain creative control over the representation of their assets in other games. Whether this means the creator enforces strict asset templating or leaves it wide open for developers to use their imaginations, is entirely up to the original asset creator.
 
-## Manifest Template
+* `Application Token Interfaces`
+
+    Nifty's novel ATI feature makes developing NFT's as familiar as making regular game assets. A token's ATI defines data types and formatting so the Nifty Unity Plugin knows what to expect when querying for NFT data on chain. 
+
+## Application Token Interface (ATI)
+
+```
+{
+    "comment": "This file was generated with nifty-atigen.",
+    "version": "nifty-atigen/1.0",
+    "engine": {
+        "name": "unity",
+        "version": "2019.6.5"
+    },
+    "details": {
+        "horns": "uint16",
+        "head": "uint16",
+        "eyes": "uint16",
+        "color_pri": "uint32",
+        "color_sec": "uint32",
+        "level": "uint8",
+        "skills": [
+            {
+                "name": "string",
+                "power": "uint8",
+                "effect": "string"
+            },
+            {
+                "name": "string",
+                "power": "uint8",
+                "effect": "string"
+            }
+        ]
+        ...
+    }
+    ...
+}
+```
+
+## Manifest Template - maybe...
 
 The Nifty Manifest Template is used to describe the *format* in which NFT instance data will be returned to the client.
 
@@ -36,94 +75,22 @@ The Nifty Manifest Template is used to describe the *format* in which NFT instan
 {
     "version": "1",
     "asset": {
-        "engine": "unity",
-        "template": "2dasset",
+        "engine": {
+            "name": "unity",
+            "version": "2019.1.5"
+        },
+        "template": {
+            "name": "2dasset",
+            "version": "1"
+        },
+        "extension": ".fbx",
+        "language": "en"
         ...
     },
     "instance": {
         "class": "creature",
         "subclass": "dragon",
         "customclass": "drakoskeep"
-    },
-    "file": "dragon51.2dasset",
-    "created": "2019-06-05T19:20:50+00:00",
-    "creator": "craig.tf"
+    }
 }
 ```
-
-## Asset Templates
-
-* `2dasset`
-
-```
-{
-    "imageSmall": "dragon51.png",
-    "imageLarge": "dragon51.png",
-    ...
-}
-```
-
-* `3dasset`
-
-```
-{
-    "render": "dragon51.fbx",
-    "scale": "small",
-    "class": ""
-    ...
-}
-```
-
-## Class Templates
-
-* `vehicle`
-
-```
-{
-    "type": "truck",
-    "wheels": "4",
-    "passengers": "2",
-    "color": "blue",
-    ...
-}
-```
-
-* `gun`
-
-```
-{
-    "type": "rifle",
-    "caliber": "5.56mm",
-    "designation": "M4 Carbine",
-    "skin": "dragonscales.texture",
-    ...
-}
-```
-
-* `creature`
-
-```
-{
-    "type": "dragon",
-    "element": "water"
-    ...
-}
-```
-
-## Subclass Templates
-
-* `dragon`
-
-```
-{
-    "breath": "fire",
-    "family": "wyvern",
-    ...
-}
-```
-
-## Custom Classes
-
-Custom classes offer for further granularity that allows asset developers to define custom templates for consumption by their individual games. This can be seen as a template for the instance data returned from an NFT query.
-
-Custom classes are not maintained by the community and are created and used on an individual basis, however the community may maintain their own instance templates if they so choose.
