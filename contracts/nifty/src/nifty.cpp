@@ -70,6 +70,8 @@ ACTION nifty::issue(name recipient, name token_name, string query_string, string
         row.query_string = query_string;
     });
 
+    //TODO: increment supply
+
     //add new serial to vector
     vector<uint64_t> new_serials = {new_serial};
 
@@ -134,6 +136,25 @@ ACTION nifty::burn(name creator, name token_name, vector<uint64_t> serials, stri
         //erase nft
         nfts.erase(nft);
     }
+
+    //TODO: decrement supply
+}
+
+ACTION nifty::editnfturis(name token_name, uint64_t serial, name owner, string new_json_uri, string new_asset_bundle_uri) {
+    //authenticate
+    require_auth(owner);
+
+    //open licenses table, get license
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(owner.value, "license not found");
+
+    //open nft table, get nft
+    nonfungibles_table nfts(get_self(), token_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //validate
+    check(owner == lic.owner, "only nft owner may edit uris");
+
 }
 
 

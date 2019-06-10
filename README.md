@@ -1,18 +1,14 @@
 # Nifty Token Standard
 
-The Nifty Token Standard is a lightweight, scalable, and licensable cross-game NFT standard for EOSIO software.
+The Nifty Token Standard is a lightweight cross-game NFT standard for EOSIO software.
 
 ## Key Features
 
-* `Lightweight`
+* `Lightweight and Scalable`
 
-    Nifty was elegantly designed to allow for fast token lookup - no more extensive drilling through tables to complete your data query.
+    Because of Nifty's elegant design, it uses far fewer resources in order to operate. Contract tables are lean and have been optimized to scale naturally by demand.
 
-* `Scalable`
-
-    Because of Nifty's elegant design, it uses far fewer resources in order to operate. Contract tables are lean and have been optimized to scale naturally by demand. 
-
-* `Licensable`
+* `Custom Licensing`
 
     Nifty was designed with cross-game assets in mind. Nifty's unique licensing feature lets developers monetize their game assets further (if desired) by allowing third parties to add custom asset packages to an existing NFT token. Token creators have the option of allowing third parties to purchase new licenses, allowing open license access, or disabling license addition altogether.
 
@@ -24,15 +20,17 @@ The Nifty Token Standard is a lightweight, scalable, and licensable cross-game N
 
     **Disabled Licensing**: this setting disables new license additions entirely. This feature is desirable for token creators who want to maintain full control of all NFT assets.
 
-* `Creative Control`
+* `Maintain Creative Control`
 
     Nifty believes that original asset creators should maintain creative control over the representation of their assets in other games. Whether this means the creator enforces strict asset templating or leaves it wide open for developers to use their imaginations, is entirely up to the original asset creator.
 
-* `Application Token Interfaces`
+    **Open Control**: Open control allows content creators the freedom to make NFT assets with no creative oversight. This setting means as long as a developer owns a license they may create any kind of asset they wish.
 
-    Nifty's novel ATI feature makes developing NFT's as familiar as making regular game assets. A token's ATI defines data types and formatting so the Nifty Unity Plugin knows what to expect when querying for NFT data on chain. 
+    **Approved Control**: Approved control allows token creators to approve a new asset before letting third party developers emplace assets in a new license slot.
 
 ## Application Token Interface (ATI)
+
+Nifty's novel ATI feature makes developing NFT's as familiar as making regular game assets. A token's ATI defines data types and formatting so the Nifty Unity Plugin knows what to expect when querying for NFT data on chain. 
 
 ```
 {
@@ -66,31 +64,14 @@ The Nifty Token Standard is a lightweight, scalable, and licensable cross-game N
     ...
 }
 ```
+## Development Example
 
-## Manifest Template - maybe...
+**Scenario**: GoodBlock Games has launched a new title where in-game dragons are tokenized on the Telos Blockchain, and Bethesda Game Studios wants to build a game where those same dragon tokens are imported and usable in their game. 
 
-The Nifty Manifest Template is used to describe the *format* in which NFT instance data will be returned to the client.
+Since GoodBlock Games created the original game asset they control the licensing rights to their dragon token, and therefore may allow or disallow Bethesda Game Studios to get a new license slot for the dragon tokens. When GoodBlock Games created their dragon tokens they set the licensing model to **Monetary Licensing**, meaning new license slots are obtainable through payment to and approval by GoodBlock Games. GoodBlock Games and Bethesda Game Studios negotiate a deal between each other, and GoodBlock Games agrees to give Bethesda Game Studios a 1-year license slot for 300 TLOS. The deal is accepted by both parties and the license slot is opened and purchased on-chain - solidifying the transaction.
 
-```
-{
-    "version": "1",
-    "asset": {
-        "engine": {
-            "name": "unity",
-            "version": "2019.1.5"
-        },
-        "template": {
-            "name": "2dasset",
-            "version": "1"
-        },
-        "extension": ".fbx",
-        "language": "en"
-        ...
-    },
-    "instance": {
-        "class": "creature",
-        "subclass": "dragon",
-        "customclass": "drakoskeep"
-    }
-}
-```
+Note that GoodBlock Games had several licensing models to choose from when they created their dragon tokens, including permissioned, open, or disabled licensing models. Permissioned is identical to the monetary model, minus the contract-enabled payment. Open licensing signifies that additional license slots are open to any prospective developer and doesn't require approval or permission from the token creator. Disabled licensing means additional license slots are not obtainable.
+
+Now that Bethesda Game Studios has acquired a license slot they may now begin creating their tokenized game assets. Their purchased license slot allows them to save a representation of the dragon asset, whether that is close to the original game asset or not is agreed upon during the licensing purchase.
+
+Note that having token representation vary by game is intentional, as this decouples game assets from their original game and opens them up for use in other games while not appearing out of place in the foreign game world. 
