@@ -6,154 +6,160 @@ nifty::~nifty() {}
 
 //======================== nonfungible actions ========================
 
-ACTION nifty::create(name token_name, name creator, bool burnable, bool transferable, uint64_t max_supply) {
+ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transferable, uint64_t max_supply) {
     //authenticate
-    require_auth(creator);
+    require_auth(issuer);
 
-    //get stats table, search for token_name
+    //open stats table, search for token_name
     stats_table stats(get_self(), get_self().value);
-    auto st = stats.find(token_name.value);
+    auto stat = stats.find(token_name.value);
 
     //validate
-    check(st == stats.end(), "token name already exists");
-    //TODO?: add checks for max_supply
+    check(stat == stats.end(), "token name already exists");
+    //TODO: add checks for max_supply
     
     //emplace new stats
-    stats.emplace(creator, [&](auto& row) {
-        row.token_name = token_name;
-        row.creator = creator;
-        row.licensing = name("disabled");
-        row.license_price = asset(0, CORE_SYM);
-        row.burnable = burnable;
-        row.transferable = transferable;
-        row.supply = uint64_t(0);
-        row.max_supply = max_supply;
+    stats.emplace(issuer, [&](auto& col) {
+        col.token_name = token_name;
+        col.issuer = issuer;
+        col.license_model = name("disabled");
+        col.burnable = burnable;
+        col.transferable = transferable;
+        col.supply = uint64_t(0);
+        col.max_supply = max_supply;
     });
 
     //open licenses table, find license
     licenses_table licenses(get_self(), token_name.value);
-    auto lic = licenses.find(creator.value);
+    auto lic = licenses.find(issuer.value);
 
     //validate
     check(lic == licenses.end(), "license already exists for token name");
 
     //emplace new license slot
-    licenses.emplace(creator, [&](auto& row) {
-        row.owner = creator;
-        row.ati_uri = "";
-        row.base_uri = "";
+    licenses.emplace(issuer, [&](auto& col) {
+        col.owner = issuer;
+        col.expiration = time_point_sec(current_time_point());
+        col.contract_uri = "";
+        col.ati_uri = "";
+        col.package_uri = "";
+        col.asset_bundle_uri_head = "";
+        col.json_uri_head = "";
     });
+
 }
 
-ACTION nifty::issue(name recipient, name token_name, string query_string, string memo) {
+ACTION nifty::issuenft(name to, name token_name, string immutable_uri_tail, string memo) {
     //open stats table, get token data
     stats_table stats(get_self(), get_self().value);
-    auto& stat = stats.get(token_name.value, "token name not found");
+    auto& stat = stats.get(token_name.value, "token stats not found");
 
     //authenticate
-    require_auth(stat.creator);
+    require_auth(stat.issuer);
 
     //validate
-    check(is_account(recipient), "recipient account does not exist");
-    check(stat.supply + 1 <= stat.max_supply, "token name at max supply");
+    check(is_account(to), "to account does not exist");
+    check(stat.supply + 1 <= stat.max_supply, "token at max supply");
+    // check(immutable_uri_tail != "", "immutable uri cannot be blank");
 
-    //get nonfungibles table
+    //increment nft supply
+    stats.modify(stat, same_payer, [&](auto& col) {
+        col.supply += uint64_t(1);
+    });
+
+    //open nonfungibles table
     nonfungibles_table nfts(get_self(), token_name.value);
 
-    //calc new serial
+    //get new serial
     uint64_t new_serial = nfts.available_primary_key();
 
     //emplace new NFT
-    nfts.emplace(stat.creator, [&](auto& row) {
-        row.serial = new_serial;
-        row.owner = stat.creator;
-        row.query_string = query_string;
+    nfts.emplace(stat.issuer, [&](auto& col) {
+        col.serial = new_serial;
+        col.owner = to;
+        col.immutable_uri_tail = immutable_uri_tail;
+        col.mutable_uri_tail = "";
     });
-
-    //TODO: increment supply
-
-    //add new serial to vector
-    vector<uint64_t> new_serials = {new_serial};
-
-    //send inline transfer action to recipient, requires eosio.code on active permission
-    action(permission_level{get_self(), name("active")}, get_self(), name("transfer"), make_tuple(
-        recipient, //recipient
-        get_self(), //sender
-        token_name, //token_name
-        new_serials, //serials
-        std::string("issue") //memo
-    )).send();
 
 }
 
-ACTION nifty::transfer(name recipient, name sender, name token_name, vector<uint64_t> serials, string memo) {
+ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo) {
     //authenticate
-    require_auth(sender);
+    require_auth(from);
 
     //opens stats table, get token data
     stats_table stats(get_self(), get_self().value);
-    auto& stat = stats.get(token_name.value, "token name not found");
+    auto& stat = stats.get(token_name.value, "token stats not found");
 
     //validate
-    check(stat.transferable, "token disallows transfers");
+    check(stat.transferable, "token is not transferable");
 
     //loop over each serial and change ownership
     for (uint64_t serial : serials) {
-        //open nonfungibles table, get token data
+        //open nonfungibles table, get nft
         nonfungibles_table nfts(get_self(), token_name.value);
         auto& nft = nfts.get(serial, "nft not found");
 
         //validate
-        check(sender == nft.owner, "only nft owner is allowed to transfer");
+        check(from == nft.owner, "only nft owner is allowed to transfer");
 
         //modify nft ownership to recipient
-        nfts.modify(nft, same_payer, [&](auto& row) {
-            row.owner = recipient;
+        nfts.modify(nft, same_payer, [&](auto& col) {
+            col.owner = to;
         });
 
     }
 
 }
 
-ACTION nifty::burn(name creator, name token_name, vector<uint64_t> serials, string memo) {
+ACTION nifty::burnnft(name issuer, name token_name, vector<uint64_t> serials, string memo) {
     //authenticate
-    require_auth(creator);
+    require_auth(issuer);
 
     //get stats table
     stats_table stats(get_self(), get_self().value);
-    auto& st = stats.get(token_name.value, "token name not found");
+    auto& stat = stats.get(token_name.value, "token stats not found");
 
     //validate
-    check(st.creator == creator, "only creator can burn tokens");
-    check(st.burnable, "token disallows burning");
+    check(stat.burnable, "token is not burnable");
+    check(stat.issuer == issuer, "only token issuer can burn tokens");
+    // check(stat.supply >= serials.size(), "cannot burn supply below 0");
+
+    //decrement nft supply
+    stats.modify(stat, same_payer, [&](auto& col) {
+        col.supply -= uint64_t(1);
+    });
 
     //loop over each serial and erase nft
     for (uint64_t serial : serials) {
-        //get nonfungibles table
+        //open nonfungibles table, get nft
         nonfungibles_table nfts(get_self(), token_name.value);
         auto& nft = nfts.get(serial, "nft not found");
+
+        //TODO?: check that issuer owns each nft before erasing
 
         //erase nft
         nfts.erase(nft);
     }
 
-    //TODO: decrement supply
 }
 
-ACTION nifty::editnfturis(name token_name, uint64_t serial, name owner, string new_json_uri, string new_asset_bundle_uri) {
-    //authenticate
-    require_auth(owner);
-
-    //open licenses table, get license
-    licenses_table licenses(get_self(), token_name.value);
-    auto& lic = licenses.get(owner.value, "license not found");
+ACTION nifty::updatenft(name token_name, uint64_t serial, string new_mutable_uri_tail) {
+    //open stats table, get stats
+    stats_table stats(get_self(), get_self().value);
+    auto& stat = stats.get(token_name.value, "token stats not found");
 
     //open nft table, get nft
     nonfungibles_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
-    //validate
-    check(owner == lic.owner, "only nft owner may edit uris");
+    //authenticate
+    require_auth(stat.issuer);
+
+    //modify nft mutable uri
+    nfts.modify(nft, same_payer, [&](auto& col) {
+        col.mutable_uri_tail = new_mutable_uri_tail;
+    });
 
 }
 
@@ -161,53 +167,58 @@ ACTION nifty::editnfturis(name token_name, uint64_t serial, name owner, string n
 
 //======================== licensing actions ========================
 
-ACTION nifty::setlicensing(name token_name, name new_licensing, asset license_price) {
+ACTION nifty::setlicensing(name token_name, name new_license_model) {
     //open stats table, get token
     stats_table stats(get_self(), get_self().value);
-    auto& stat = stats.get(token_name.value, "token name not found");
+    auto& stat = stats.get(token_name.value, "token stats not found");
 
     //authenticate
-    require_auth(stat.creator);
+    require_auth(stat.issuer);
 
     //validate
-    check(validate_licensing(new_licensing, license_price), "invalid licensing");
-
-    asset new_license_price = asset(0, CORE_SYM);
-
-    //apply license price, if applicable
-    if (new_licensing == name("monetary")) {
-        new_license_price = license_price;
-    }
+    check(validate_license_model(new_license_model), "invalid license model");
 
     //modify licensing
-    stats.modify(stat, same_payer, [&](auto& row) {
-        row.licensing = new_licensing;
-        row.license_price = new_license_price;
+    stats.modify(stat, same_payer, [&](auto& col) {
+        col.license_model = new_license_model;
     });
     
 }
 
-ACTION nifty::newlicense(name token_name, name owner, string ati_uri, string base_uri) {
+ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration, string contract_uri) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
-    auto& stat = stats.get(token_name.value, "token name not found");
+    auto& stat = stats.get(token_name.value, "token stats not found");
+
+    //intialize defaults
+    name ram_payer = owner;
+    time_point_sec new_expiration = time_point_sec(current_time_point()) + DEFAULT_LICENSE_LENGTH;
 
     //validate
-    switch (stat.licensing.value) 
+    switch (stat.license_model.value) 
     {
-        case name("monetary").value :
-            check(false, "monetary licensing requires a purchase with the buylicense action");
-        case name("permissioned").value :
-            require_auth(stat.creator);
-        case name("open").value : 
+        case name("disabled").value : 
+            check(false, "licensing is disabled");
             break;
-        case name("disabled").value :
-            check(false, "disabled licensing prohibits new license creation");
+        case name("open").value : 
+            require_auth(owner);
+            break;
+        // case name("purchasable").value : 
+        //     require_auth(get_self());
+        //     check(false, "in development...");
+        //     //TODO: get new expiration from store table
+        //     //TODO: ram payer is owner
+        //     break;
+        case name("permissioned").value : 
+            require_auth(stat.issuer);
+            ram_payer = stat.issuer;
+            new_expiration = expiration;
+            break;
         default:
             check(false, "invalid licensing");
     }
 
-    //open license table, find license
+    //open license table, search for license
     licenses_table licenses(get_self(), token_name.value);
     auto lic = licenses.find(owner.value);
 
@@ -215,30 +226,103 @@ ACTION nifty::newlicense(name token_name, name owner, string ati_uri, string bas
     check(lic == licenses.end(), "owner already has a license");
 
     //emplace new license
-    licenses.emplace(owner, [&](auto& row) {
-        row.owner = owner;
-        row.ati_uri = ati_uri;
-        row.base_uri = base_uri;
+    licenses.emplace(ram_payer, [&](auto& col) {
+        col.owner = owner;
+        col.expiration = new_expiration;
+        col.contract_uri = "";
+        col.ati_uri = "";
+        col.package_uri = "";
+        col.asset_bundle_uri_head = "";
+        col.json_uri_head = "";
     });
 
 }
 
-ACTION nifty::edituris(name token_name, name owner, string new_ati_uri, string new_base_uri) {
+ACTION nifty::renewlicense(name token_name, name owner, time_point_sec expiration, string contract_uri) {
+    //open stats table, get stats
+    stats_table stats(get_self(), get_self().value);
+    auto& stat = stats.get(token_name.value, "token stats not found");
+
+    //initialie defaults
+    name ram_payer = owner;
+    time_point_sec new_expiration = time_point_sec(current_time_point()) + DEFAULT_LICENSE_LENGTH;
+
+    //validate
+    switch (stat.license_model.value) 
+    {
+        case name("disabled").value : 
+            check(false, "licensing is disabled, unable to renew");
+            break;
+        case name("open").value : 
+            require_auth(owner);
+            break;
+        // case name("purchasable").value : 
+        //     require_auth(get_self());
+        //     check(false, "in development...");
+        //     //TODO: get new expiration from store table
+        //     //TODO: ram payer is owner
+        //     break;
+        case name("permissioned").value : 
+            require_auth(stat.issuer);
+            ram_payer = stat.issuer;
+            new_expiration = expiration;
+            break;
+        default:
+            check(false, "invalid licensing");
+    }
+
+    //open license table, search for license
+    licenses_table licenses(get_self(), token_name.value);
+    auto lic = licenses.get(owner.value, "existing license not found");
+
+    //renew license
+    licenses.modify(lic, same_payer, [&](auto& col) {
+        col.expiration = new_expiration;
+        col.contract_uri = contract_uri;
+    });
+
+}
+
+ACTION nifty::updatelic(name token_name, name owner, string new_ati_uri, string new_package_uri, string new_asset_bundle_uri_head, string new_json_uri_head) {
     //authenticate
     require_auth(owner);
 
     //open licenses table, get license
     licenses_table licenses(get_self(), token_name.value);
-    auto& lic = licenses.get(owner.value, "license for owner not found");
+    auto& lic = licenses.get(owner.value, "license not found");
 
     //validate
-    check(owner == lic.owner, "only license owner may edit uris");
+    check(owner == lic.owner, "only license owner may update license data");
 
     //modify license uris
-    licenses.modify(lic, same_payer, [&](auto& row) {
-        row.ati_uri = new_ati_uri;
-        row.base_uri = new_base_uri;
+    licenses.modify(lic, same_payer, [&](auto& col) {
+        col.ati_uri = new_ati_uri;
+        col.package_uri = new_package_uri;
+        col.asset_bundle_uri_head = new_asset_bundle_uri_head;
+        col.json_uri_head = new_json_uri_head;
     });
+
+}
+
+ACTION nifty::revokelic(name token_name, name license_owner) {
+    //open stats table, get stats
+    stats_table stats(get_self(), get_self().value);
+    auto& stat = stats.get(token_name.value, "token stats not found");
+
+    //authenticate
+    require_auth(stat.issuer);
+
+    //open licenses table, get license
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
+
+    //update license expiration to now (alternative to erasing license)
+    // licenses.modify(lic, same_payer, [&](auto& col){
+    //     col.expiration = time_point_sec(current_time_point());
+    // });
+
+    //erase license slot
+    licenses.erase(lic);
 
 }
 
@@ -246,20 +330,17 @@ ACTION nifty::edituris(name token_name, name owner, string new_ati_uri, string n
 
 //========== helper functions ==========
 
-bool nifty::validate_licensing(name licensing, asset license_price) {
+bool nifty::validate_license_model(name license_model) {
     
-    switch (licensing.value) 
+    switch (license_model.value) 
     {
-        case name("monetary").value :
-            check(license_price.symbol.is_valid(), "invalid symbol name");
-            check(license_price.is_valid(), "invalid price");
-            check(license_price.amount > 0, "price must be positive");
+        case name("disabled").value :
             break;
         case name("open").value : 
             break;
-        case name("permissioned").value :
+        case name("purchasable").value :
             break;
-        case name("disabled").value :
+        case name("permissioned").value :
             break;
         default:
             return false;
@@ -270,7 +351,37 @@ bool nifty::validate_licensing(name licensing, asset license_price) {
 
 
 
-//========== migration tools ==========
+//========== migration actions ==========
+
+ACTION nifty::delstats(name token_name) {
+    stats_table stats(get_self(), get_self().value);
+    auto& stat = stats.get(token_name.value, "token stats not found");
+    stats.erase(stat);
+}
+
+ACTION nifty::dellic(name token_name, name license_owner) {
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
+    licenses.erase(lic);
+}
+
+ACTION nifty::delnft(name token_name, uint64_t serial) {
+    nonfungibles_table nfts(get_self(), token_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+    nfts.erase(nft);
+}
+
+ACTION nifty::delcurr(symbol sym) {
+    currencies_table currencies(get_self(), get_self().value);
+    auto& curr = currencies.get(sym.code().raw(), "currency not found");
+    currencies.erase(curr);
+}
+
+ACTION nifty::delacct(name owner, symbol sym) {
+    accounts_table accounts(get_self(), owner.value);
+    auto& acct = accounts.get(sym.code().raw(), "account not found");
+    accounts.erase(acct);
+}
 
 
 

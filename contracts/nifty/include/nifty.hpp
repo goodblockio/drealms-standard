@@ -3,7 +3,7 @@
  * 
  * @author Craig Branscom
  * @contract nifty
- * @version v0.1
+ * @version v0.1.1
  * @copyright defined in LICENSE.txt
  */
 
@@ -29,16 +29,124 @@ CONTRACT nifty : public contract {
 
     //constants
     const symbol CORE_SYM = symbol("TLOS", 4);
+    const uint32_t DEFAULT_LICENSE_LENGTH = uint32_t(31536000); //1 year in seconds
+
+
+
+    //======================== nonfungible actions ========================
+
+    //creates a new token stats row, initially sets licensing to disabled
+    ACTION createnft(name token_name, name issuer, bool burnable, bool transferable, uint64_t max_supply);
+
+    //issues a new NFT token
+    ACTION issuenft(name to, name token_name, string immutable_uri_tail, string memo);
+
+    //transfers nft(s) of a single token name to recipient account
+    ACTION transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo);
+
+    //burns nft of a single token name, if burnable
+    ACTION burnnft(name issuer, name token_name, vector<uint64_t> serials, string memo);
+
+    //updates token stats table
+    // ACTION updatestats(name token_name, bool burnable, bool transferable);
+
+    //edits nft uris
+    ACTION updatenft(name token_name, uint64_t serial, string new_mutable_uri_tail);
+
+
+
+    //======================== licensing actions ========================
+
+    //sets new license model on existing token stats
+    ACTION setlicensing(name token_name, name new_license_model); //TODO?: rename to setlicmodel()
+
+    //adds a new license
+    ACTION newlicense(name token_name, name owner, time_point_sec expiration, string contract_uri);
+
+    //renews an existing license
+    ACTION renewlicense(name token_name, name owner, time_point_sec expiration, string contract_uri); //TODO: make exp and uri optional params
+
+    //updates license uris
+    ACTION updatelic(name token_name, name owner, 
+        string new_ati_uri, string new_package_uri, string new_asset_bundle_uri_head, string new_json_uri_head);
+
+    //revokes a license
+    ACTION revokelic(name token_name, name license_owner);
+
+    //buys a new license for a token, triggered from the eosio.token::transfer action
+    // [[eosio::on_notify("eosio.token::transfer")]]
+    // void buylicense(name from, name to, asset quantity, string memo);
+
+
+
+    //======================== fungible actions ========================
+
+    //creates a fungible token
+    // ACTION create();
+
+    //issues a fungible token
+    // ACTION issue();
+
+    //transfers fungible tokens
+    // ACTION transfer();
+
+    //burns fungible tokens
+    // ACTION burn();
+
+    //opens a zero balance wallet
+    // ACTION open();
+
+    //closes a zero balance wallet
+    // ACTION close();
+
+    //withdraws balance
+    // ACTION withdraw();
+
+    //deposits transfer
+    // [[eosio::on_notify("eosio.token::transfer")]]
+    // void deposit(name from, name to, asset quantity, string memo);
+
+    
+
+    //========== helper functions ==========
+
+    bool validate_license_model(name license_model);
+
+
+
+    //========== migration actions ==========
+
+    ACTION delstats(name token_name);
+
+    ACTION dellic(name token_name, name license_owner);
+
+    ACTION delnft(name token_name, uint64_t serial);
+
+    ACTION delcurr(symbol sym);
+
+    ACTION delacct(name owner, symbol sym);
+
 
 
     //======================== tables ========================
 
-    //@scope get_self().value
+    //@scope singleton
     //@ram 
+    // TABLE config {
+    //     string nifty_version;
+    //     symbol core_sym;
+    //     name contract_owner;
+    //     asset default_license_length;
+    // };
+    // typedef singleton<name("configs"), config> config_singleton;
+
+
+    //@scope get_self().value
+    //@ram ~322 bytes
     TABLE stats {
         name token_name;
-        name creator;
-        name licensing;
+        name issuer;
+        name license_model;
         bool burnable;
         bool transferable;
         uint64_t supply;
@@ -46,128 +154,72 @@ CONTRACT nifty : public contract {
 
         uint64_t primary_key() const { return token_name.value; }
         EOSLIB_SERIALIZE(stats, 
-            (token_name)(creator)
-            (licensing)
+            (token_name)(issuer)
+            (license_model)
             (burnable)(transferable)
             (supply)(max_supply))
     };
-    typedef multi_index<name("statistics"), stats> stats_table;
+    typedef multi_index<name("statistics"), stats> stats_table; //TODO?: rename table
+    
 
     //@scope token_name.value
-    //@ram 
+    //@ram ~303 bytes
     TABLE license {
         name owner;
-        //TODO?: add name category; //TODO?: rename to token_theme?
-        //TODO?: add time_point_sec expiration;
-        //TODO?: add asset license_price; //set to zero if not applicable
-
-        string manifest_uri; //details contents of unity package //TODO?: rename to ati_uri 
+        time_point_sec expiration;
+        string contract_uri; //blank if not applicable //TODO?: remove
+        string ati_uri; //defines ATI for tokens using created under this license
         string package_uri; //contains object.unitypackage at endpoint
-
-        string asset_bundle_uri_head; //uri tail is on nft
-        string json_uri_head; //uri tail is on nft
+        string asset_bundle_uri_head;
+        string json_uri_head;
         
         uint64_t primary_key() const { return owner.value; }
         EOSLIB_SERIALIZE(license, 
-            (owner)
-            (manifest_uri)(package_uri)
+            (owner)(expiration)
+            (contract_uri)(ati_uri)(package_uri)
             (asset_bundle_uri_head)(json_uri_head))
     };
     typedef multi_index<name("licenses"), license> licenses_table;
 
 
     //@scope token_name.value
-    //@ram 
+    //@ram ~198 bytes
     TABLE nonfungible {
         uint64_t serial;
         name owner;
-
-        string asset_bundle_uri_tail; //contains asset bundle at endpoint
-        string json_uri_tail; //contains raw token meta in json format at endpoint //EX: tokenname=dragons&serial=5
+        string immutable_uri_tail; //immutable so updates don't break composite uri
+        string mutable_uri_tail; //TODO?: make optional - std::optional<string> mutable_uri;
 
         uint64_t primary_key() const { return serial; }
         EOSLIB_SERIALIZE(nonfungible, 
-            (serial)(owner)
-            (asset_bundle_uri_tail)(json_uri_tail))
+            (serial)(owner)(immutable_uri_tail)(mutable_uri_tail))
     };
     typedef multi_index<name("nonfungibles"), nonfungible> nonfungibles_table;
 
 
-    //@scope symbol.code().raw()
-    //@ram 
-    // TABLE fungible {
-    //     asset balance;
-    //     uint64_t primary_key() const { return balance.symbol.code().raw(); }
-    //     EOSLIB_SERIALIZE(fungible, (balance))
-    // };
-    // typedef multi_index<name("fungibles"), fungible> fungibles_table;
-
-    //@scope singleton
-    //@ram 
-    // TABLE config {
-    //     string nifty_version;
-    //     symbol core_sym;
-    //     asset default_license_length;
-    // };
-    // typedef singleton<name("configs"), config> config_singleton;
+    //@scope get_self().value
+    //@ram ~354 bytes
+    TABLE currency {
+        name issuer;
+        bool burnable;
+        bool transferable;
+        asset supply;
+        asset max_supply;
+        
+        uint64_t primary_key() const { return supply.symbol.code().raw(); }
+        EOSLIB_SERIALIZE(currency, (issuer)(burnable)(transferable)(supply)(max_supply))
+    };
+    typedef multi_index<name("currencies"), currency> currencies_table;
 
 
-
-    //======================== nonfungible actions ========================
-
-    //creates a new token stats row, initially sets licensing to disabled
-    ACTION create(name token_name, name creator, bool burnable, bool transferable, uint64_t max_supply);
-
-    //issues a new NFT token
-    ACTION issue(name recipient, name token_name, string query_string, string memo);
-
-    //transfers nft(s) of a single token name to recipient account
-    ACTION transfer(name recipient, name sender, name token_name, vector<uint64_t> serials, string memo);
-
-    //burns nft(s) of a single token name if they are burnable
-    ACTION burn(name creator, name token_name, vector<uint64_t> serials, string memo);
-
-    //edits nft uris
-    ACTION editnfturis(name token_name, uint64_t serial, name owner, string new_json_uri, string new_asset_bundle_uri); //TODO?: rename to editnftdata()
-
-
-
-    //======================== licensing actions ========================
-
-    //sets new licensing status for a token, and license price if applicable
-    ACTION setlicensing(name token_name, name new_licensing, asset license_price); //TODO: make license_price optional param
-
-    //adds a new license
-    ACTION newlicense(name token_name, name owner, string ati_uri, string base_uri);
-
-    //edits a current license uri
-    ACTION edituris(name token_name, name owner, string new_ati_uri, string new_base_uri); //TODO?: rename to editlicuris
-
-    //buys a new license for a token, triggered from the eosio.token::transfer action
-    // [[eosio::on_notify("eosio.token::transfer")]]
-    // void buylicense(name token_name, name owner);
-
-    //renews a token license
-    // ACTION renewlicense(name token_name, name owner, );
-
-
-
-    //========== helper functions ==========
-
-    bool validate_licensing(name licensing, asset license_price);
-
-
-
-    //========== migration actions ==========
-
-    //TODO: void delnft();
-
-    //TODO: void delft();
-
-    //TODO: void dellicense();
-
-    //TODO: void delmeta();
-
-
+    //@scope owner.value
+    //@ram ~144 bytes
+    TABLE account {
+        asset balance;
+        
+        uint64_t primary_key() const { return balance.symbol.code().raw(); }
+        EOSLIB_SERIALIZE(account, (balance))
+    };
+    typedef multi_index<name("accounts"), account> accounts_table;
 
 };
