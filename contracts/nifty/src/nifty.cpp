@@ -194,6 +194,8 @@ ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration,
     name ram_payer = owner;
     time_point_sec new_expiration = time_point_sec(current_time_point()) + DEFAULT_LICENSE_LENGTH;
 
+    //TODO: apply max and min to expiration (if open licensing)
+
     //validate
     switch (stat.license_model.value) 
     {
@@ -247,11 +249,13 @@ ACTION nifty::renewlicense(name token_name, name owner, time_point_sec expiratio
     name ram_payer = owner;
     time_point_sec new_expiration = time_point_sec(current_time_point()) + DEFAULT_LICENSE_LENGTH;
 
+    //TODO: apply max and min to expiration (if open licensing)
+
     //validate
     switch (stat.license_model.value) 
     {
         case name("disabled").value : 
-            check(false, "licensing is disabled, unable to renew");
+            check(false, "licensing is disabled");
             break;
         case name("open").value : 
             require_auth(owner);
@@ -273,7 +277,7 @@ ACTION nifty::renewlicense(name token_name, name owner, time_point_sec expiratio
 
     //open license table, search for license
     licenses_table licenses(get_self(), token_name.value);
-    auto lic = licenses.get(owner.value, "existing license not found");
+    auto& lic = licenses.get(owner.value, "existing license not found");
 
     //renew license
     licenses.modify(lic, same_payer, [&](auto& col) {
@@ -315,6 +319,8 @@ ACTION nifty::revokelic(name token_name, name license_owner) {
     //open licenses table, get license
     licenses_table licenses(get_self(), token_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
+
+    //TODO?: use alternative revocation?
 
     //update license expiration to now (alternative to erasing license)
     // licenses.modify(lic, same_payer, [&](auto& col){

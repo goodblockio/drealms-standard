@@ -3,7 +3,7 @@
  * 
  * @author Craig Branscom
  * @contract nifty
- * @version v0.1.1
+ * @version v0.1.0
  * @copyright defined in LICENSE.txt
  */
 
@@ -106,6 +106,23 @@ CONTRACT nifty : public contract {
     // [[eosio::on_notify("eosio.token::transfer")]]
     // void deposit(name from, name to, asset quantity, string memo);
 
+
+
+    //======================== market actions ========================
+
+    //lists an nft for sale on market
+    // ACTION listnft();
+
+    //removes an nft for sale from market
+    // ACTION delistnft();
+
+    
+
+    //======================== admin actions ========================
+
+    //upserts config singleton
+    // ACTION setconfig(string nifty_version, symbol core_sym, name contract_owner, 
+        // uint32_t default_license_length, uint32_t min_license_length, uint32_t max_license_length);
     
 
     //========== helper functions ==========
@@ -136,7 +153,9 @@ CONTRACT nifty : public contract {
     //     string nifty_version;
     //     symbol core_sym;
     //     name contract_owner;
-    //     asset default_license_length;
+    //     uint32_t default_license_length;
+    //     uint32_t min_license_length;
+    //     uint32_t max_license_length;
     // };
     // typedef singleton<name("configs"), config> config_singleton;
 
@@ -159,7 +178,7 @@ CONTRACT nifty : public contract {
             (burnable)(transferable)
             (supply)(max_supply))
     };
-    typedef multi_index<name("statistics"), stats> stats_table; //TODO?: rename table
+    typedef multi_index<name("stats"), stats> stats_table;
     
 
     //@scope token_name.value
@@ -194,8 +213,7 @@ CONTRACT nifty : public contract {
         EOSLIB_SERIALIZE(nonfungible, 
             (serial)(owner)(immutable_uri_tail)(mutable_uri_tail))
     };
-    typedef multi_index<name("nonfungibles"), nonfungible> nonfungibles_table;
-
+    typedef multi_index<name("nfts"), nonfungible> nonfungibles_table;
 
     //@scope get_self().value
     //@ram ~354 bytes
@@ -221,5 +239,19 @@ CONTRACT nifty : public contract {
         EOSLIB_SERIALIZE(account, (balance))
     };
     typedef multi_index<name("accounts"), account> accounts_table;
+
+    //@scope token_name.value
+    //@ram 
+    // TABLE ask {
+    //     uint64_t serial;
+    //     name seller;
+    //     asset price;
+    //     time_point_sec expiration;
+
+    //     uint64_t primary_key() const { return serial; }
+    //     //TODO?: add uint64_t byseller() const { return seller.value; }
+    //     EOSLIB_SERIALIZE(ask, (serial)(seller)(price)(expiration))
+    // };
+    // typedef multi_index<name("asks"), ask> asks_table;
 
 };
