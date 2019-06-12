@@ -66,11 +66,11 @@ CONTRACT nifty : public contract {
     //renews an existing license
     ACTION renewlicense(name token_name, name owner, time_point_sec expiration, string contract_uri); //TODO: make exp and uri optional params
 
-    //updates license uris
+    //updates license uris //TODO?: rename editlicense
     ACTION updatelic(name token_name, name owner, 
         string new_ati_uri, string new_package_uri, string new_asset_bundle_uri_head, string new_json_uri_head);
 
-    //revokes a license
+    //revokes a license //TODO?: 
     ACTION revokelic(name token_name, name license_owner);
 
     //buys a new license for a token, triggered from the eosio.token::transfer action
@@ -125,6 +125,7 @@ CONTRACT nifty : public contract {
         // uint32_t default_license_length, uint32_t min_license_length, uint32_t max_license_length);
     
 
+
     //========== helper functions ==========
 
     bool validate_license_model(name license_model);
@@ -161,7 +162,7 @@ CONTRACT nifty : public contract {
 
 
     //@scope get_self().value
-    //@ram ~322 bytes
+    //@ram ~507 bytes
     TABLE stats {
         name token_name;
         name issuer;
@@ -215,6 +216,7 @@ CONTRACT nifty : public contract {
     };
     typedef multi_index<name("nfts"), nonfungible> nonfungibles_table;
 
+
     //@scope get_self().value
     //@ram ~354 bytes
     TABLE currency {
@@ -239,6 +241,7 @@ CONTRACT nifty : public contract {
         EOSLIB_SERIALIZE(account, (balance))
     };
     typedef multi_index<name("accounts"), account> accounts_table;
+
 
     //@scope token_name.value
     //@ram 
