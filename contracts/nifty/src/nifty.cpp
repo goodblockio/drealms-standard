@@ -82,8 +82,6 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_data, string m
         col.mutable_data = "";
     });
 
-    //TODO: inline transfer instead of issuing directly
-
 }
 
 ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo) {
@@ -146,7 +144,7 @@ ACTION nifty::burnnft(name token_name, vector<uint64_t> serials, string memo) {
 
 }
 
-ACTION nifty::consumenft(name token_name, uint64_t serial) {
+ACTION nifty::consumenft(name token_name, uint64_t serial, string memo) {
     //open stats table, get stat
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -219,8 +217,8 @@ ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration,
     //intialize defaults
     name ram_payer = owner;
     time_point_sec new_expiration = time_point_sec(current_time_point()) + DEFAULT_LICENSE_LENGTH;
-
-    //TODO: apply max and min to expiration (if open licensing)
+    time_point_sec min_expiration = time_point_sec(current_time_point()) + MIN_LICENSE_LENGTH;
+    time_point_sec max_expiration = time_point_sec(current_time_point()) + MAX_LICENSE_LENGTH;
 
     //validate
     switch (stat.license_model.value) 
@@ -230,12 +228,17 @@ ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration,
             break;
         case name("open").value : 
             require_auth(owner);
+            check(expiration > min_expiration, "expiration is less than minimum expiration");
+            check(expiration < max_expiration, "expiration is more than maximum expiration");
+            // if (expiration < min_expiration) {
+            //     new_expiration = time_point_sec(current_time_point()) + MIN_LICENSE_LENGTH;
+            // } else if (expiration > max_expiration) {
+            //     new_expiration = time_point_sec(current_time_point()) + MAX_LICENSE_LENGTH;
+            // }
             break;
         // case name("purchasable").value : 
         //     require_auth(get_self());
         //     check(false, "in development...");
-        //     //TODO: get new expiration from store table
-        //     //TODO: ram payer is owner
         //     break;
         case name("permissioned").value : 
             require_auth(stat.issuer);
@@ -250,66 +253,24 @@ ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration,
     licenses_table licenses(get_self(), token_name.value);
     auto lic = licenses.find(owner.value);
 
-    //validate
-    check(lic == licenses.end(), "owner already has a license");
-
-    //emplace new license
-    licenses.emplace(ram_payer, [&](auto& col) {
-        col.owner = owner;
-        col.expiration = new_expiration;
-        col.contract_uri = "";
-        col.ati_uri = "";
-        col.package_uri = "";
-        col.asset_bundle_uri= "";
-        col.json_uri= "";
-    });
-
-}
-
-ACTION nifty::renewlicense(name token_name, name owner, time_point_sec expiration, string contract_uri) {
-    //open stats table, get stats
-    stats_table stats(get_self(), get_self().value);
-    auto& stat = stats.get(token_name.value, "token stats not found");
-
-    //initialie defaults
-    name ram_payer = owner;
-    time_point_sec new_expiration = time_point_sec(current_time_point()) + DEFAULT_LICENSE_LENGTH;
-
-    //TODO: apply max and min to expiration (if open licensing)
-
-    //validate
-    switch (stat.license_model.value) 
-    {
-        case name("disabled").value : 
-            check(false, "licensing is disabled");
-            break;
-        case name("open").value : 
-            require_auth(owner);
-            break;
-        // case name("purchasable").value : 
-        //     require_auth(get_self());
-        //     check(false, "in development...");
-        //     //TODO: get new expiration from store table
-        //     //TODO: ram payer is owner
-        //     break;
-        case name("permissioned").value : 
-            require_auth(stat.issuer);
-            ram_payer = stat.issuer;
-            new_expiration = expiration;
-            break;
-        default:
-            check(false, "invalid licensing");
+    if (lic == licenses.end()) {
+        //emplace new license
+        licenses.emplace(ram_payer, [&](auto& col) {
+            col.owner = owner;
+            col.expiration = new_expiration;
+            col.contract_uri = "";
+            col.ati_uri = "";
+            col.package_uri = "";
+            col.asset_bundle_uri= "";
+            col.json_uri= "";
+        });
+    } else {
+        //renew existing license
+        licenses.modify(*lic, same_payer, [&](auto& col) {
+            col.expiration = new_expiration;
+            col.contract_uri = contract_uri;
+        });
     }
-
-    //open license table, search for license
-    licenses_table licenses(get_self(), token_name.value);
-    auto& lic = licenses.get(owner.value, "existing license not found");
-
-    //renew license
-    licenses.modify(lic, same_payer, [&](auto& col) {
-        col.expiration = new_expiration;
-        col.contract_uri = contract_uri;
-    });
 
 }
 
@@ -347,7 +308,6 @@ ACTION nifty::revokelic(name token_name, name license_owner) {
     auto& lic = licenses.get(license_owner.value, "license not found");
 
     //TODO?: use alternative revocation?
-
     //update license expiration to now (alternative to erasing license)
     // licenses.modify(lic, same_payer, [&](auto& col){
     //     col.expiration = time_point_sec(current_time_point());

@@ -30,8 +30,9 @@ CONTRACT nifty : public contract {
 
     //constants
     const symbol CORE_SYM = symbol("TLOS", 4);
-    const uint32_t DEFAULT_LICENSE_LENGTH = uint32_t(31536000); //1 year in seconds
-
+    const uint32_t DEFAULT_LICENSE_LENGTH = 31536000; //1 year in seconds
+    const uint32_t MIN_LICENSE_LENGTH = 604800; //1 week in seconds
+    const uint32_t MAX_LICENSE_LENGTH = 62899200; //2 years in seconds
 
 
     //======================== nonfungible actions ========================
@@ -46,10 +47,10 @@ CONTRACT nifty : public contract {
     ACTION transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo);
 
     //burns nft of a single token name, if burnable
-    ACTION burnnft(name token_name, vector<uint64_t> serials, string memo); //TODO: remove issuer from params
+    ACTION burnnft(name token_name, vector<uint64_t> serials, string memo);
 
     //consumes an nft, if consumable
-    ACTION consumenft(name token_name, uint64_t serial); //TODO?: add memo
+    ACTION consumenft(name token_name, uint64_t serial, string memo);
 
     //edits nft uris
     ACTION updatenft(name token_name, uint64_t serial, string new_mutable_data);
@@ -70,15 +71,12 @@ CONTRACT nifty : public contract {
     //adds a new license
     ACTION newlicense(name token_name, name owner, time_point_sec expiration, string contract_uri);
 
-    //renews an existing license
-    ACTION renewlicense(name token_name, name owner, time_point_sec expiration, string contract_uri); //TODO: make exp and uri optional params
-
     //updates license uris
     ACTION editlicense(name token_name, name owner, 
         string new_ati_uri, string new_package_uri, string new_asset_bundle_uri, string new_json_uri);
 
     //revokes a license
-    ACTION revokelic(name token_name, name license_owner);
+    ACTION revokelic(name token_name, name license_owner); //TODO?: rename to eraselicense
 
     //buys a new license for a token, triggered from the eosio.token::transfer action
     // [[eosio::on_notify("eosio.token::transfer")]]
