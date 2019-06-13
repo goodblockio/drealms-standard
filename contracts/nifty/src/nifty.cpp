@@ -6,7 +6,7 @@ nifty::~nifty() {}
 
 //======================== nonfungible actions ========================
 
-ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transferable, uint64_t max_supply) {
+ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply) {
     //authenticate
     require_auth(issuer);
 
@@ -16,7 +16,7 @@ ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transf
 
     //validate
     check(stat == stats.end(), "token name already exists");
-    //TODO: add checks for max_supply
+    check(max_supply > 0, "max supply must be a positive number");
     
     //emplace new stats
     stats.emplace(issuer, [&](auto& col) {
@@ -25,6 +25,7 @@ ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transf
         col.license_model = name("disabled");
         col.burnable = burnable;
         col.transferable = transferable;
+        col.consumable = consumable;
         col.supply = uint64_t(0);
         col.max_supply = max_supply;
     });
@@ -43,13 +44,13 @@ ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transf
         col.contract_uri = "";
         col.ati_uri = "";
         col.package_uri = "";
-        col.asset_bundle_uri_head = "";
-        col.json_uri_head = "";
+        col.asset_bundle_uri= "";
+        col.json_uri= "";
     });
 
 }
 
-ACTION nifty::issuenft(name to, name token_name, string immutable_uri_tail, string memo) {
+ACTION nifty::issuenft(name to, name token_name, string immutable_data, string memo) {
     //open stats table, get token data
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -60,15 +61,15 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_uri_tail, stri
     //validate
     check(is_account(to), "to account does not exist");
     check(stat.supply + 1 <= stat.max_supply, "token at max supply");
-    // check(immutable_uri_tail != "", "immutable uri cannot be blank");
+    // check(immutable_data != "", "immutable data cannot be blank");
 
     //increment nft supply
     stats.modify(stat, same_payer, [&](auto& col) {
         col.supply += uint64_t(1);
     });
 
-    //open nonfungibles table
-    nonfungibles_table nfts(get_self(), token_name.value);
+    //open nfts table
+    nfts_table nfts(get_self(), token_name.value);
 
     //get new serial
     uint64_t new_serial = nfts.available_primary_key();
@@ -77,9 +78,11 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_uri_tail, stri
     nfts.emplace(stat.issuer, [&](auto& col) {
         col.serial = new_serial;
         col.owner = to;
-        col.immutable_uri_tail = immutable_uri_tail;
-        col.mutable_uri_tail = "";
+        col.immutable_data = immutable_data;
+        col.mutable_data = "";
     });
+
+    //TODO: inline transfer instead of issuing directly
 
 }
 
@@ -96,8 +99,8 @@ ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> 
 
     //loop over each serial and change ownership
     for (uint64_t serial : serials) {
-        //open nonfungibles table, get nft
-        nonfungibles_table nfts(get_self(), token_name.value);
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), token_name.value);
         auto& nft = nfts.get(serial, "nft not found");
 
         //validate
@@ -132,8 +135,8 @@ ACTION nifty::burnnft(name issuer, name token_name, vector<uint64_t> serials, st
 
     //loop over each serial and erase nft
     for (uint64_t serial : serials) {
-        //open nonfungibles table, get nft
-        nonfungibles_table nfts(get_self(), token_name.value);
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), token_name.value);
         auto& nft = nfts.get(serial, "nft not found");
 
         //TODO?: check that issuer owns each nft before erasing
@@ -144,13 +147,38 @@ ACTION nifty::burnnft(name issuer, name token_name, vector<uint64_t> serials, st
 
 }
 
-ACTION nifty::updatenft(name token_name, uint64_t serial, string new_mutable_uri_tail) {
+ACTION nifty::consumenft(name owner, name token_name, uint64_t serial) {
+    //authenticate
+    require_auth(owner);
+
+    //open stats table, get stat
+    stats_table stats(get_self(), get_self().value);
+    auto& stat = stats.get(token_name.value, "token stats not found");
+
+    //open nfts table, get nft
+    nfts_table nfts(get_self(), token_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //validate
+    check(stat.consumable, "nft is not consumable");
+    check(nft.owner == owner, "only nft owner can consume");
+
+    //decrement nft supply
+    stats.modify(stat, same_payer, [&](auto& col) {
+        col.supply -= uint64_t(1);
+    });
+
+    //erase nft
+    nfts.erase(nft);
+}
+
+ACTION nifty::updatenft(name token_name, uint64_t serial, string new_mutable_data) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
 
     //open nft table, get nft
-    nonfungibles_table nfts(get_self(), token_name.value);
+    nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
     //authenticate
@@ -158,7 +186,7 @@ ACTION nifty::updatenft(name token_name, uint64_t serial, string new_mutable_uri
 
     //modify nft mutable uri
     nfts.modify(nft, same_payer, [&](auto& col) {
-        col.mutable_uri_tail = new_mutable_uri_tail;
+        col.mutable_data = new_mutable_data;
     });
 
 }
@@ -234,8 +262,8 @@ ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration,
         col.contract_uri = "";
         col.ati_uri = "";
         col.package_uri = "";
-        col.asset_bundle_uri_head = "";
-        col.json_uri_head = "";
+        col.asset_bundle_uri= "";
+        col.json_uri= "";
     });
 
 }
@@ -287,7 +315,7 @@ ACTION nifty::renewlicense(name token_name, name owner, time_point_sec expiratio
 
 }
 
-ACTION nifty::updatelic(name token_name, name owner, string new_ati_uri, string new_package_uri, string new_asset_bundle_uri_head, string new_json_uri_head) {
+ACTION nifty::editlicense(name token_name, name owner, string new_ati_uri, string new_package_uri, string new_asset_bundle_uri, string new_json_uri) {
     //authenticate
     require_auth(owner);
 
@@ -302,8 +330,8 @@ ACTION nifty::updatelic(name token_name, name owner, string new_ati_uri, string 
     licenses.modify(lic, same_payer, [&](auto& col) {
         col.ati_uri = new_ati_uri;
         col.package_uri = new_package_uri;
-        col.asset_bundle_uri_head = new_asset_bundle_uri_head;
-        col.json_uri_head = new_json_uri_head;
+        col.asset_bundle_uri = new_asset_bundle_uri;
+        col.json_uri= new_json_uri;
     });
 
 }
@@ -372,7 +400,7 @@ ACTION nifty::dellic(name token_name, name license_owner) {
 }
 
 ACTION nifty::delnft(name token_name, uint64_t serial) {
-    nonfungibles_table nfts(get_self(), token_name.value);
+    nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
     nfts.erase(nft);
 }

@@ -10,7 +10,6 @@
 #pragma once
 
 #include <eosio/eosio.hpp>
-// #include <eosio/permission.hpp>
 #include <eosio/asset.hpp>
 #include <eosio/action.hpp>
 #include <eosio/transaction.hpp>
@@ -35,11 +34,11 @@ CONTRACT nifty : public contract {
 
     //======================== nonfungible actions ========================
 
-    //creates a new token stats row, initially sets licensing to disabled
-    ACTION createnft(name token_name, name issuer, bool burnable, bool transferable, uint64_t max_supply);
+    //creates a new token stat, initially sets licensing to disabled
+    ACTION createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply);
 
     //issues a new NFT token
-    ACTION issuenft(name to, name token_name, string immutable_uri_tail, string memo);
+    ACTION issuenft(name to, name token_name, string immutable_data, string memo);
 
     //transfers nft(s) of a single token name to recipient account
     ACTION transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo);
@@ -47,18 +46,24 @@ CONTRACT nifty : public contract {
     //burns nft of a single token name, if burnable
     ACTION burnnft(name issuer, name token_name, vector<uint64_t> serials, string memo);
 
-    //updates token stats table
-    // ACTION updatestats(name token_name, bool burnable, bool transferable);
+    //consumes an nft, if consumable
+    ACTION consumenft(name owner, name token_name, uint64_t serial); //TODO?: add memo
 
     //edits nft uris
-    ACTION updatenft(name token_name, uint64_t serial, string new_mutable_uri_tail);
+    ACTION updatenft(name token_name, uint64_t serial, string new_mutable_data);
+
+    //updates token stats table
+    // ACTION updatestats(name token_name, bool burnable, bool transferable, bool consumable);
+
+    //bulk transfer
+    // ACTION transfernfts(name from, name to, map<name, vector<uint64_t>> nfts, string memo);
 
 
 
     //======================== licensing actions ========================
 
     //sets new license model on existing token stats
-    ACTION setlicensing(name token_name, name new_license_model); //TODO?: rename to setlicmodel()
+    ACTION setlicensing(name token_name, name new_license_model);
 
     //adds a new license
     ACTION newlicense(name token_name, name owner, time_point_sec expiration, string contract_uri);
@@ -66,11 +71,11 @@ CONTRACT nifty : public contract {
     //renews an existing license
     ACTION renewlicense(name token_name, name owner, time_point_sec expiration, string contract_uri); //TODO: make exp and uri optional params
 
-    //updates license uris //TODO?: rename editlicense
-    ACTION updatelic(name token_name, name owner, 
-        string new_ati_uri, string new_package_uri, string new_asset_bundle_uri_head, string new_json_uri_head);
+    //updates license uris
+    ACTION editlicense(name token_name, name owner, 
+        string new_ati_uri, string new_package_uri, string new_asset_bundle_uri, string new_json_uri);
 
-    //revokes a license //TODO?: 
+    //revokes a license
     ACTION revokelic(name token_name, name license_owner);
 
     //buys a new license for a token, triggered from the eosio.token::transfer action
@@ -169,6 +174,7 @@ CONTRACT nifty : public contract {
         name license_model;
         bool burnable;
         bool transferable;
+        bool consumable;
         uint64_t supply;
         uint64_t max_supply;
 
@@ -176,7 +182,7 @@ CONTRACT nifty : public contract {
         EOSLIB_SERIALIZE(stats, 
             (token_name)(issuer)
             (license_model)
-            (burnable)(transferable)
+            (burnable)(transferable)(consumable)
             (supply)(max_supply))
     };
     typedef multi_index<name("stats"), stats> stats_table;
@@ -187,17 +193,17 @@ CONTRACT nifty : public contract {
     TABLE license {
         name owner;
         time_point_sec expiration;
-        string contract_uri; //blank if not applicable //TODO?: remove
+        string contract_uri; //blank if not applicable
         string ati_uri; //defines ATI for tokens using created under this license
         string package_uri; //contains object.unitypackage at endpoint
-        string asset_bundle_uri_head;
-        string json_uri_head;
+        string asset_bundle_uri;
+        string json_uri;
         
         uint64_t primary_key() const { return owner.value; }
         EOSLIB_SERIALIZE(license, 
             (owner)(expiration)
             (contract_uri)(ati_uri)(package_uri)
-            (asset_bundle_uri_head)(json_uri_head))
+            (asset_bundle_uri)(json_uri))
     };
     typedef multi_index<name("licenses"), license> licenses_table;
 
@@ -207,14 +213,14 @@ CONTRACT nifty : public contract {
     TABLE nonfungible {
         uint64_t serial;
         name owner;
-        string immutable_uri_tail; //immutable so updates don't break composite uri
-        string mutable_uri_tail; //TODO?: make optional - std::optional<string> mutable_uri;
+        string immutable_data; //immutable so updates don't break composite uri
+        string mutable_data; //TODO?: make optional - std::optional<string> mutable_data;
 
         uint64_t primary_key() const { return serial; }
         EOSLIB_SERIALIZE(nonfungible, 
-            (serial)(owner)(immutable_uri_tail)(mutable_uri_tail))
+            (serial)(owner)(immutable_data)(mutable_data))
     };
-    typedef multi_index<name("nfts"), nonfungible> nonfungibles_table;
+    typedef multi_index<name("nfts"), nonfungible> nfts_table;
 
 
     //@scope get_self().value
@@ -250,11 +256,39 @@ CONTRACT nifty : public contract {
     //     name seller;
     //     asset price;
     //     time_point_sec expiration;
-
     //     uint64_t primary_key() const { return serial; }
     //     //TODO?: add uint64_t byseller() const { return seller.value; }
     //     EOSLIB_SERIALIZE(ask, (serial)(seller)(price)(expiration))
     // };
     // typedef multi_index<name("asks"), ask> asks_table;
+
+
+    //@scope token_name.value
+    //@ram 
+    // TABLE auction {
+    //     uint64_t serial;
+    //     name auctioner;
+    //     asset high_bid;
+    //     asset high_bidder;
+    //     time_point_sec expiration;
+    //     uint64_t primary_key() const { return serial; }
+    //     EOSLIB_SERIALIZE(auction, (serial)(auctioner)(high_bid)(high_bidder)(expiration))
+    // };
+    // typedef multi_index<name("auctions"), auction> auctions_table;
+
+
+    //@scope token_name.value
+    //@ram
+    // TABLE rental {
+    //     uint64_t serial;
+    //     name renter;
+    //     name rentee;
+    //     asset price;
+    //     uint32_t duration;
+    //     time_point_sec expiration;
+    //     uint64_t primary_key() const { return serial; }
+    //     EOSLIB_SERIALIZE(rental, (serial)(renter)(rentee)(price)(duration)(expiration))
+    // };
+    // typedef multi_index<name("rentals"), rental> rentals_table;
 
 };
