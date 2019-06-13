@@ -115,22 +115,21 @@ ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> 
 
 }
 
-ACTION nifty::burnnft(name issuer, name token_name, vector<uint64_t> serials, string memo) {
-    //authenticate
-    require_auth(issuer);
-
+ACTION nifty::burnnft(name token_name, vector<uint64_t> serials, string memo) {
     //get stats table
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
 
+    //authenticate
+    require_auth(stat.issuer);
+
     //validate
     check(stat.burnable, "token is not burnable");
-    check(stat.issuer == issuer, "only token issuer can burn tokens");
-    // check(stat.supply >= serials.size(), "cannot burn supply below 0");
+    check(stat.supply >= serials.size(), "cannot burn supply below 0");
 
     //decrement nft supply
     stats.modify(stat, same_payer, [&](auto& col) {
-        col.supply -= uint64_t(1);
+        col.supply -= serials.size();
     });
 
     //loop over each serial and erase nft
@@ -147,10 +146,7 @@ ACTION nifty::burnnft(name issuer, name token_name, vector<uint64_t> serials, st
 
 }
 
-ACTION nifty::consumenft(name owner, name token_name, uint64_t serial) {
-    //authenticate
-    require_auth(owner);
-
+ACTION nifty::consumenft(name token_name, uint64_t serial) {
     //open stats table, get stat
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -159,9 +155,11 @@ ACTION nifty::consumenft(name owner, name token_name, uint64_t serial) {
     nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
+    //authenticate
+    require_auth(nft.owner);
+
     //validate
     check(stat.consumable, "nft is not consumable");
-    check(nft.owner == owner, "only nft owner can consume");
 
     //decrement nft supply
     stats.modify(stat, same_payer, [&](auto& col) {

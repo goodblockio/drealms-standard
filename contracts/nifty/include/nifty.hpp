@@ -18,6 +18,8 @@
 using namespace std;
 using namespace eosio;
 
+//TODO?: 
+
 CONTRACT nifty : public contract {
 
     public:
@@ -44,10 +46,10 @@ CONTRACT nifty : public contract {
     ACTION transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo);
 
     //burns nft of a single token name, if burnable
-    ACTION burnnft(name issuer, name token_name, vector<uint64_t> serials, string memo);
+    ACTION burnnft(name token_name, vector<uint64_t> serials, string memo); //TODO: remove issuer from params
 
     //consumes an nft, if consumable
-    ACTION consumenft(name owner, name token_name, uint64_t serial); //TODO?: add memo
+    ACTION consumenft(name token_name, uint64_t serial); //TODO?: add memo
 
     //edits nft uris
     ACTION updatenft(name token_name, uint64_t serial, string new_mutable_data);
