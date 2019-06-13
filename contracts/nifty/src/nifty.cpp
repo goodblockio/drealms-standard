@@ -295,7 +295,7 @@ ACTION nifty::editlicense(name token_name, name owner, string new_ati_uri, strin
 
 }
 
-ACTION nifty::revokelic(name token_name, name license_owner) {
+ACTION nifty::eraselicense(name token_name, name license_owner) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");

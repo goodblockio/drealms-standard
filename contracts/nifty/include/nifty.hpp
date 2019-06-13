@@ -76,7 +76,7 @@ CONTRACT nifty : public contract {
         string new_ati_uri, string new_package_uri, string new_asset_bundle_uri, string new_json_uri);
 
     //revokes a license
-    ACTION revokelic(name token_name, name license_owner); //TODO?: rename to eraselicense
+    ACTION eraselicense(name token_name, name license_owner);
 
     //buys a new license for a token, triggered from the eosio.token::transfer action
     // [[eosio::on_notify("eosio.token::transfer")]]
