@@ -136,7 +136,8 @@ ACTION nifty::burnnft(name token_name, vector<uint64_t> serials, string memo) {
         nfts_table nfts(get_self(), token_name.value);
         auto& nft = nfts.get(serial, "nft not found");
 
-        //TODO?: check that issuer owns each nft before erasing
+        //check that issuer owns each nft before erasing
+        check(nft.owner == stat.issuer, "only issuer may burn tokens");
 
         //erase nft
         nfts.erase(nft);
