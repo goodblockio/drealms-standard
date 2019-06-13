@@ -111,6 +111,10 @@ ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> 
 
     }
 
+    //notify accounts
+    require_recipient(from);
+    require_recipient(to);
+
 }
 
 ACTION nifty::burnnft(name token_name, vector<uint64_t> serials, string memo) {
