@@ -34,8 +34,8 @@ CONTRACT nifty : public contract {
 
     //======================== nonfungible actions ========================
 
-    //creates a new token stats row, initially sets licensing to disabled
-    ACTION createnft(name token_name, name issuer, bool burnable, bool transferable, uint64_t max_supply);
+    //creates a new token stat, initially sets licensing to disabled
+    ACTION createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply);
 
     //issues a new NFT token
     ACTION issuenft(name to, name token_name, string immutable_data, string memo);
@@ -47,13 +47,13 @@ CONTRACT nifty : public contract {
     ACTION burnnft(name issuer, name token_name, vector<uint64_t> serials, string memo);
 
     //consumes an nft, if consumable
-    // ACTION consumenft(name owner, name token_name, uint64_t serial, string memo);
-
-    //updates token stats table
-    // ACTION updatestats(name token_name, bool burnable, bool transferable);
+    ACTION consumenft(name owner, name token_name, uint64_t serial); //TODO?: add memo
 
     //edits nft uris
     ACTION updatenft(name token_name, uint64_t serial, string new_mutable_data);
+
+    //updates token stats table
+    // ACTION updatestats(name token_name, bool burnable, bool transferable, bool consumable);
 
     //bulk transfer
     // ACTION transfernfts(name from, name to, map<name, vector<uint64_t>> nfts, string memo);
@@ -174,7 +174,7 @@ CONTRACT nifty : public contract {
         name license_model;
         bool burnable;
         bool transferable;
-        // bool consumable;
+        bool consumable;
         uint64_t supply;
         uint64_t max_supply;
 
@@ -182,7 +182,7 @@ CONTRACT nifty : public contract {
         EOSLIB_SERIALIZE(stats, 
             (token_name)(issuer)
             (license_model)
-            (burnable)(transferable)
+            (burnable)(transferable)(consumable)
             (supply)(max_supply))
     };
     typedef multi_index<name("stats"), stats> stats_table;
@@ -220,7 +220,7 @@ CONTRACT nifty : public contract {
         EOSLIB_SERIALIZE(nonfungible, 
             (serial)(owner)(immutable_data)(mutable_data))
     };
-    typedef multi_index<name("nfts"), nonfungible> nonfungibles_table;
+    typedef multi_index<name("nfts"), nonfungible> nfts_table;
 
 
     //@scope get_self().value

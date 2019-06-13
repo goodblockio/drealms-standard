@@ -6,7 +6,7 @@ nifty::~nifty() {}
 
 //======================== nonfungible actions ========================
 
-ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transferable, uint64_t max_supply) {
+ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply) {
     //authenticate
     require_auth(issuer);
 
@@ -25,6 +25,7 @@ ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transf
         col.license_model = name("disabled");
         col.burnable = burnable;
         col.transferable = transferable;
+        col.consumable = consumable;
         col.supply = uint64_t(0);
         col.max_supply = max_supply;
     });
@@ -67,8 +68,8 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_data, string m
         col.supply += uint64_t(1);
     });
 
-    //open nonfungibles table
-    nonfungibles_table nfts(get_self(), token_name.value);
+    //open nfts table
+    nfts_table nfts(get_self(), token_name.value);
 
     //get new serial
     uint64_t new_serial = nfts.available_primary_key();
@@ -80,6 +81,8 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_data, string m
         col.immutable_data = immutable_data;
         col.mutable_data = "";
     });
+
+    //TODO: inline transfer instead of issuing directly
 
 }
 
@@ -96,8 +99,8 @@ ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> 
 
     //loop over each serial and change ownership
     for (uint64_t serial : serials) {
-        //open nonfungibles table, get nft
-        nonfungibles_table nfts(get_self(), token_name.value);
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), token_name.value);
         auto& nft = nfts.get(serial, "nft not found");
 
         //validate
@@ -132,8 +135,8 @@ ACTION nifty::burnnft(name issuer, name token_name, vector<uint64_t> serials, st
 
     //loop over each serial and erase nft
     for (uint64_t serial : serials) {
-        //open nonfungibles table, get nft
-        nonfungibles_table nfts(get_self(), token_name.value);
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), token_name.value);
         auto& nft = nfts.get(serial, "nft not found");
 
         //TODO?: check that issuer owns each nft before erasing
@@ -144,13 +147,38 @@ ACTION nifty::burnnft(name issuer, name token_name, vector<uint64_t> serials, st
 
 }
 
+ACTION nifty::consumenft(name owner, name token_name, uint64_t serial) {
+    //authenticate
+    require_auth(owner);
+
+    //open stats table, get stat
+    stats_table stats(get_self(), get_self().value);
+    auto& stat = stats.get(token_name.value, "token stats not found");
+
+    //open nfts table, get nft
+    nfts_table nfts(get_self(), token_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //validate
+    check(stat.consumable, "nft is not consumable");
+    check(nft.owner == owner, "only nft owner can consume");
+
+    //decrement nft supply
+    stats.modify(stat, same_payer, [&](auto& col) {
+        col.supply -= uint64_t(1);
+    });
+
+    //erase nft
+    nfts.erase(nft);
+}
+
 ACTION nifty::updatenft(name token_name, uint64_t serial, string new_mutable_data) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
 
     //open nft table, get nft
-    nonfungibles_table nfts(get_self(), token_name.value);
+    nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
     //authenticate
@@ -372,7 +400,7 @@ ACTION nifty::dellic(name token_name, name license_owner) {
 }
 
 ACTION nifty::delnft(name token_name, uint64_t serial) {
-    nonfungibles_table nfts(get_self(), token_name.value);
+    nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
     nfts.erase(nft);
 }
