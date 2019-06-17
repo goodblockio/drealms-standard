@@ -37,17 +37,17 @@ ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transf
     //validate
     check(lic == licenses.end(), "license already exists for token name");
 
+    //build initial uri maps
+    map<name, string> new_full_uris;
+    map<name, string> new_base_uris;
+
     //emplace new license slot
     licenses.emplace(issuer, [&](auto& col) {
         col.owner = issuer;
         col.expiration = time_point_sec(current_time_point());
-        col.contract_uri = "";
-        col.ati_uri = "";
-        col.package_uri = "";
-        col.asset_bundle_uri= "";
-        col.json_uri= "";
+        col.full_uris = new_full_uris;
+        col.base_uris = new_base_uris;
     });
-
 }
 
 ACTION nifty::issuenft(name to, name token_name, string immutable_data, string memo) {
@@ -61,17 +61,15 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_data, string m
     //validate
     check(is_account(to), "to account does not exist");
     check(stat.supply + 1 <= stat.max_supply, "token at max supply");
-    // check(immutable_data != "", "immutable data cannot be blank");
+    check(immutable_data != "", "immutable data cannot be blank");
 
     //increment nft supply
     stats.modify(stat, same_payer, [&](auto& col) {
         col.supply += uint64_t(1);
     });
 
-    //open nfts table
+    //open nfts table, get new serial
     nfts_table nfts(get_self(), token_name.value);
-
-    //get new serial
     uint64_t new_serial = nfts.available_primary_key();
 
     //emplace new NFT
@@ -81,7 +79,6 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_data, string m
         col.immutable_data = immutable_data;
         col.mutable_data = "";
     });
-
 }
 
 ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo) {
@@ -114,7 +111,6 @@ ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> 
     //notify accounts
     require_recipient(from);
     require_recipient(to);
-
 }
 
 ACTION nifty::burnnft(name token_name, vector<uint64_t> serials, string memo) {
@@ -146,7 +142,6 @@ ACTION nifty::burnnft(name token_name, vector<uint64_t> serials, string memo) {
         //erase nft
         nfts.erase(nft);
     }
-
 }
 
 ACTION nifty::consumenft(name token_name, uint64_t serial, string memo) {
@@ -189,7 +184,6 @@ ACTION nifty::updatenft(name token_name, uint64_t serial, string new_mutable_dat
     nfts.modify(nft, same_payer, [&](auto& col) {
         col.mutable_data = new_mutable_data;
     });
-
 }
 
 
@@ -211,10 +205,9 @@ ACTION nifty::setlicensing(name token_name, name new_license_model) {
     stats.modify(stat, same_payer, [&](auto& col) {
         col.license_model = new_license_model;
     });
-    
 }
 
-ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration, string contract_uri) {
+ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -235,16 +228,7 @@ ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration,
             require_auth(owner);
             check(expiration > min_expiration, "expiration is less than minimum expiration");
             check(expiration < max_expiration, "expiration is more than maximum expiration");
-            // if (expiration < min_expiration) {
-            //     new_expiration = time_point_sec(current_time_point()) + MIN_LICENSE_LENGTH;
-            // } else if (expiration > max_expiration) {
-            //     new_expiration = time_point_sec(current_time_point()) + MAX_LICENSE_LENGTH;
-            // }
             break;
-        // case name("purchasable").value : 
-        //     require_auth(get_self());
-        //     check(false, "in development...");
-        //     break;
         case name("permissioned").value : 
             require_auth(stat.issuer);
             ram_payer = stat.issuer;
@@ -259,45 +243,23 @@ ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration,
     auto lic = licenses.find(owner.value);
 
     if (lic == licenses.end()) {
+        //build initial uri maps
+        map<name, string> new_full_uris;
+        map<name, string> new_base_uri;
+
         //emplace new license
         licenses.emplace(ram_payer, [&](auto& col) {
             col.owner = owner;
             col.expiration = new_expiration;
-            col.contract_uri = "";
-            col.ati_uri = "";
-            col.package_uri = "";
-            col.asset_bundle_uri= "";
-            col.json_uri= "";
+            col.full_uris = new_full_uris;
+            col.base_uris = new_base_uri;
         });
     } else {
         //renew existing license
         licenses.modify(*lic, same_payer, [&](auto& col) {
             col.expiration = new_expiration;
-            col.contract_uri = contract_uri;
         });
     }
-
-}
-
-ACTION nifty::editlicense(name token_name, name owner, string new_ati_uri, string new_package_uri, string new_asset_bundle_uri, string new_json_uri) {
-    //authenticate
-    require_auth(owner);
-
-    //open licenses table, get license
-    licenses_table licenses(get_self(), token_name.value);
-    auto& lic = licenses.get(owner.value, "license not found");
-
-    //validate
-    check(owner == lic.owner, "only license owner may update license data");
-
-    //modify license uris
-    licenses.modify(lic, same_payer, [&](auto& col) {
-        col.ati_uri = new_ati_uri;
-        col.package_uri = new_package_uri;
-        col.asset_bundle_uri = new_asset_bundle_uri;
-        col.json_uri= new_json_uri;
-    });
-
 }
 
 ACTION nifty::eraselicense(name token_name, name license_owner) {
@@ -320,7 +282,107 @@ ACTION nifty::eraselicense(name token_name, name license_owner) {
 
     //erase license slot
     licenses.erase(lic);
+}
 
+ACTION nifty::upserturi(name token_name, name license_owner, name uri_type, name uri_name, string new_uri) {
+    //open licenses table, get license
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
+
+    //authenticate
+    require_auth(lic.owner);
+
+    //validate
+    check(uri_type == name("full") || uri_type == name("base"), "invalid uri type");
+
+    //initialize uri map
+    map<name, string> uri_list;
+
+    //branch based on uri_type
+    if (uri_type == name("full")) {
+        uri_list = lic.full_uris;
+    } else if (uri_type == name("base")) {
+        uri_list = lic.base_uris;
+    }
+
+    //find fee in fees list
+    auto itr = uri_list.find(uri_name);
+
+    //update uri if found, insert if not found
+    if (itr != uri_list.end()) {
+        //update uri
+        uri_list[uri_name] = new_uri;
+
+        //update correct uri list
+        if (uri_type == name("full")) {
+            //update uri list
+            licenses.modify(lic, same_payer, [&](auto& col) {
+                col.full_uris = uri_list;
+            });
+        } else if (uri_type == name("base")) {
+            //update uri list
+            licenses.modify(lic, same_payer, [&](auto& col) {
+                col.base_uris = uri_list;
+            });
+        }
+    } else {
+        //update correct uri list
+        if (uri_type == name("full")) {
+            //insert new uri in list
+            licenses.modify(lic, same_payer, [&](auto& col) {
+                col.full_uris.insert(pair<name, string>(name(uri_name), new_uri));
+            });
+        } else if (uri_type == name("base")) {
+            //insert new uri in list
+            licenses.modify(lic, same_payer, [&](auto& col) {
+                col.base_uris.insert(pair<name, string>(name(uri_name), new_uri));
+            });
+        }
+    }
+}
+
+ACTION nifty::removeuri(name token_name, name license_owner, name uri_type, name uri_name) {
+    //open licenses table, get license
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
+
+    //authenticate
+    require_auth(lic.owner);
+
+    //validate
+    check(uri_type == name("full") || uri_type == name("base"), "invalid uri type");
+
+    //initialize uri map
+    map<name, string> uri_list;
+
+    //branch based on uri_type
+    if (uri_type == name("full")) {
+        uri_list = lic.full_uris;
+    } else if (uri_type == name("base")) {
+        uri_list = lic.base_uris;
+    }
+
+    //find uri in uris list
+    auto itr = uri_list.find(uri_name);
+
+    //valdiate
+    check(itr != uri_list.end(), "uri name not found");
+
+    //remove uri from list
+    uri_list.erase(itr);
+
+    //update correct uri list
+    if (uri_type == name("full")) {
+        //update uri list
+        licenses.modify(lic, same_payer, [&](auto& col) {
+            col.full_uris = uri_list;
+        });
+    } else if (uri_type == name("base")) {
+        //update uri list
+        licenses.modify(lic, same_payer, [&](auto& col) {
+            col.base_uris = uri_list;
+        });
+    }
 }
 
 
@@ -334,8 +396,6 @@ bool nifty::validate_license_model(name license_model) {
         case name("disabled").value :
             break;
         case name("open").value : 
-            break;
-        case name("purchasable").value :
             break;
         case name("permissioned").value :
             break;

@@ -18,7 +18,10 @@
 using namespace std;
 using namespace eosio;
 
-//TODO?: 
+//TODO: change string uris on license to map<name, string>
+
+//TODO?: bulk transfernfts action
+//TODO?: remove burnable feature
 
 CONTRACT nifty : public contract {
 
@@ -43,7 +46,7 @@ CONTRACT nifty : public contract {
     //issues a new NFT token
     ACTION issuenft(name to, name token_name, string immutable_data, string memo);
 
-    //transfers nft(s) of a single token name to recipient account
+    //transfers nft(s) of a single token name to recipient account, if transferable
     ACTION transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo);
 
     //burns nft of a single token name, if burnable
@@ -55,12 +58,6 @@ CONTRACT nifty : public contract {
     //edits nft uris
     ACTION updatenft(name token_name, uint64_t serial, string new_mutable_data);
 
-    //updates token stats table
-    // ACTION updatestats(name token_name, bool burnable, bool transferable, bool consumable);
-
-    //bulk transfer
-    // ACTION transfernfts(name from, name to, map<name, vector<uint64_t>> nfts, string memo);
-
 
 
     //======================== licensing actions ========================
@@ -69,18 +66,16 @@ CONTRACT nifty : public contract {
     ACTION setlicensing(name token_name, name new_license_model);
 
     //adds a new license
-    ACTION newlicense(name token_name, name owner, time_point_sec expiration, string contract_uri);
-
-    //updates license uris
-    ACTION editlicense(name token_name, name owner, 
-        string new_ati_uri, string new_package_uri, string new_asset_bundle_uri, string new_json_uri);
+    ACTION newlicense(name token_name, name owner, time_point_sec expiration);
 
     //revokes a license
     ACTION eraselicense(name token_name, name license_owner);
 
-    //buys a new license for a token, triggered from the eosio.token::transfer action
-    // [[eosio::on_notify("eosio.token::transfer")]]
-    // void buylicense(name from, name to, asset quantity, string memo);
+    //updates a uri if found, inserts if not found
+    ACTION upserturi(name token_name, name license_owner, name uri_type, name uri_name, string new_uri);
+
+    //removes a uri
+    ACTION removeuri(name token_name, name license_owner, name uri_type, name uri_name);
 
 
 
@@ -193,17 +188,11 @@ CONTRACT nifty : public contract {
     TABLE license {
         name owner;
         time_point_sec expiration;
-        string contract_uri; //blank if not applicable
-        string ati_uri; //defines ATI for tokens using created under this license
-        string package_uri; //contains object.unitypackage at endpoint
-        string asset_bundle_uri;
-        string json_uri;
+        map<name, string> full_uris;
+        map<name, string> base_uris;
         
         uint64_t primary_key() const { return owner.value; }
-        EOSLIB_SERIALIZE(license, 
-            (owner)(expiration)
-            (contract_uri)(ati_uri)(package_uri)
-            (asset_bundle_uri)(json_uri))
+        EOSLIB_SERIALIZE(license, (owner)(expiration)(full_uris)(base_uris))
     };
     typedef multi_index<name("licenses"), license> licenses_table;
 
