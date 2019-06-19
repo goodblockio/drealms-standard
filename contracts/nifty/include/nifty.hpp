@@ -171,6 +171,7 @@ CONTRACT nifty : public contract {
         bool transferable;
         bool consumable;
         uint64_t supply;
+        uint64_t issued_supply;
         uint64_t max_supply;
 
         uint64_t primary_key() const { return token_name.value; }
@@ -178,7 +179,7 @@ CONTRACT nifty : public contract {
             (token_name)(issuer)
             (license_model)
             (burnable)(transferable)(consumable)
-            (supply)(max_supply))
+            (supply)(issued_supply)(max_supply))
     };
     typedef multi_index<name("stats"), stats> stats_table;
     

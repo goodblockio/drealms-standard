@@ -63,14 +63,15 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_data, string m
     check(stat.supply + 1 <= stat.max_supply, "token at max supply");
     check(immutable_data != "", "immutable data cannot be blank");
 
-    //increment nft supply
-    stats.modify(stat, same_payer, [&](auto& col) {
-        col.supply += uint64_t(1);
-    });
-
     //open nfts table, get new serial
     nfts_table nfts(get_self(), token_name.value);
-    uint64_t new_serial = nfts.available_primary_key();
+    uint64_t new_serial = stat.issued_supply + 1;
+
+    //increment nft supply and issued supply
+    stats.modify(stat, same_payer, [&](auto& col) {
+        col.issued_supply += uint64_t(1);
+        col.supply += uint64_t(1);
+    });
 
     //emplace new NFT
     nfts.emplace(stat.issuer, [&](auto& col) {
