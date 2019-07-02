@@ -18,10 +18,9 @@
 using namespace std;
 using namespace eosio;
 
-//TODO: change string uris on license to map<name, string>
-
 //TODO?: bulk transfernfts action
 //TODO?: remove burnable feature
+//TODO?: set immutable data after issue? im_data = set once, m_data = set whenever
 
 CONTRACT nifty : public contract {
 
@@ -105,16 +104,6 @@ CONTRACT nifty : public contract {
     //deposits transfer
     // [[eosio::on_notify("eosio.token::transfer")]]
     // void deposit(name from, name to, asset quantity, string memo);
-
-
-
-    //======================== market actions ========================
-
-    //lists an nft for sale on market
-    // ACTION listnft();
-
-    //removes an nft for sale from market
-    // ACTION delistnft();
 
     
 
@@ -237,48 +226,5 @@ CONTRACT nifty : public contract {
         EOSLIB_SERIALIZE(account, (balance))
     };
     typedef multi_index<name("accounts"), account> accounts_table;
-
-
-    //@scope token_name.value
-    //@ram 
-    // TABLE ask {
-    //     uint64_t serial;
-    //     name seller;
-    //     asset price;
-    //     time_point_sec expiration;
-    //     uint64_t primary_key() const { return serial; }
-    //     //TODO?: add uint64_t byseller() const { return seller.value; }
-    //     EOSLIB_SERIALIZE(ask, (serial)(seller)(price)(expiration))
-    // };
-    // typedef multi_index<name("asks"), ask> asks_table;
-
-
-    //@scope token_name.value
-    //@ram 
-    // TABLE auction {
-    //     uint64_t serial;
-    //     name auctioner;
-    //     asset high_bid;
-    //     asset high_bidder;
-    //     time_point_sec expiration;
-    //     uint64_t primary_key() const { return serial; }
-    //     EOSLIB_SERIALIZE(auction, (serial)(auctioner)(high_bid)(high_bidder)(expiration))
-    // };
-    // typedef multi_index<name("auctions"), auction> auctions_table;
-
-
-    //@scope token_name.value
-    //@ram
-    // TABLE rental {
-    //     uint64_t serial;
-    //     name renter;
-    //     name rentee;
-    //     asset price;
-    //     uint32_t duration;
-    //     time_point_sec expiration;
-    //     uint64_t primary_key() const { return serial; }
-    //     EOSLIB_SERIALIZE(rental, (serial)(renter)(rentee)(price)(duration)(expiration))
-    // };
-    // typedef multi_index<name("rentals"), rental> rentals_table;
 
 };
