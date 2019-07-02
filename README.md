@@ -65,10 +65,21 @@ Nifty's novel ATI feature makes developing NFT's as familiar as making regular g
 
 **Scenario**: GoodBlock Games has launched a new title where in-game dragons are tokenized on the Telos Blockchain, and Bethesda Game Studios wants to build a game where those same dragon tokens are imported and usable in their game. 
 
-Since GoodBlock Games created the original game asset they control the licensing rights to their dragon token, and therefore may allow or disallow Bethesda Game Studios to get a new license slot for the dragon tokens. When GoodBlock Games created their dragon tokens they set the licensing model to **Monetary Licensing**, meaning new license slots are obtainable through payment to and approval by GoodBlock Games. GoodBlock Games and Bethesda Game Studios negotiate a deal between each other, and GoodBlock Games agrees to give Bethesda Game Studios a 1-year license slot for 300 TLOS. The deal is accepted by both parties and the license slot is opened and purchased on-chain - solidifying the transaction.
+Since GoodBlock Games created the original game asset they control the licensing rights to their dragon token, and therefore may allow or disallow Bethesda Game Studios to get a new license slot for the dragon tokens. When GoodBlock Games created their dragon tokens they set the licensing model to **Permissioned Licensing**, meaning new license slots are obtainable through approval by GoodBlock Games. GoodBlock Games and Bethesda Game Studios negotiate a deal, and GoodBlock Games agrees to give Bethesda Game Studios a 1-year license slot for GBG's dragon assets. The deal is accepted by both parties and the license slot is opened on-chain.
 
-In our example, Bethesda Game Studios is making a Sci-Fi FPS style game (one where a 2D fantasy dragon would almost certainly be out of place), so during license negotiation Bethesda works with GoodBlock Games to ensure GBG is okay with allowing their dragon tokens to be represented as a visibly different asset - in this case, fantasy inspired laser rifles where the dragon's textures are used as a skin for the gun during PvP matches, and the laser'c color changes based on the dragon's element (EX: a water dragon in Drakos Keep becomes a specialized laser rifle with a dragonscale skin, shoots blue lasers, and has increased weapon handling). The rigidity to which asset creators must adhere to the original token design is decided during license purchase and is outside the scope of the token contract's responsibility. GoodBlock Games accepts this offer and grants BGS a license to save their game data to a new license slot on the token contract. Now that Bethesda Game Studios has acquired a license slot, they may begin creating their tokenized game assets.
+For our example, Bethesda Game Studios is making a Sci-Fi FPS style game (one where a 2D fantasy dragon would almost certainly be out of place), so during license negotiation Bethesda works to ensure GBG is okay with allowing their dragon tokens to be represented as a visibly different asset - in this case, fantasy inspired laser rifles (EX: a water dragon in Drakos Keep becomes a specialized laser rifle with a dragonscale skin, shoots blue lasers, and has increased weapon handling). The rigidity to which asset creators must adhere to the original token design is decided during license purchase and is outside the scope of the token contract's responsibility.
 
-Note that having token representation vary by game is intentional, as this decouples game assets from their original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use Nifty assets this way, it is also important to understand that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game would break the immersion and look out of place in the game world. 
+Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use Nifty assets this way, it is also important to understand that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game would break the immersion and look out of place in the game world.
 
+## Roadmap
 
+**Nifty v1.0.0:**
+
+1. Revise license flow and action signatures
+2. Implement DEX features
+3. Purchasable license model - additional license models
+
+**Nifty v1.1.0**
+
+1. ATI refinement
+2. Unity Plugin
