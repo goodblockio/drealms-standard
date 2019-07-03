@@ -1,22 +1,20 @@
-# Nifty Token Standard
+# dRealms Token Standard
 
-The Nifty Token Standard is a lightweight cross-game NFT standard for EOSIO software.
+The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO software.
 
 ## Key Features
 
 * `Lightweight and Scalable`
 
-    Because of Nifty's elegant design, it uses far fewer resources in order to operate. Contract tables are lean and have been optimized to scale naturally by demand.
+    Because of dRealms's elegant design, it uses far fewer resources in order to operate. Contract tables are lean and have been optimized to scale naturally by demand.
 
 * `Custom Licensing Models`
 
-    Nifty was designed with cross-game assets in mind. Nifty's unique licensing feature lets developers monetize their game assets further (if desired) by allowing third parties to add custom asset packages to an existing NFT token. Token creators have the following options (ordered from most restrictive to least restrictive) when licensing their game assets:
+    dRealms was designed with cross-game assets in mind. dRealms's unique licensing feature lets developers monetize their game assets further (if desired) by allowing third parties to add custom asset packages to an existing NFT token. Token creators have the following options (ordered from most restrictive to least restrictive) when licensing their game assets:
 
     **Disabled Licensing**: this setting disables new license additions entirely. This feature is desirable for token creators who want to maintain full control of all NFT assets.
 
     **Open Licensing**: this setting allows any user to reserve a license slot for an NFT for free (not counting RAM costs). This setting is desirable if asset creators want their NFTs to be heavily modifiable and open for all asset creators to use.
-
-    **Purchasable Licensing**: this setting allows token creators to monetize their game assets by allowing certain accounts write access to extra metadata slots on an NFT. The original token creator will always get the first license slot for free regardless of their token settings. More licenses can be purchased for an NFT which allows third parties to write data to an additional metadata slot (and only that slot, overwriting data saved by other games is expressly prohibited).
 
     **Permissioned Licensing**: this setting allows token creators to individually approve additional license slots from a list of requests submitted by prospective asset developers.
 
@@ -25,12 +23,12 @@ The Nifty Token Standard is a lightweight cross-game NFT standard for EOSIO soft
 
 ## Application Token Interface (ATI)
 
-Nifty's novel ATI feature makes developing NFT's as familiar as making regular game assets. A token's ATI defines data types and formatting so the Nifty Unity Plugin knows what to expect when querying for NFT data on-chain. 
+dRealms's novel ATI feature makes developing NFT's as familiar as making regular game assets. A token's ATI defines data types and formatting so the dRealms Unity Plugin knows what to expect when querying for NFT data on-chain. 
 
 ```
 {
-    "comment": "This file was generated with nifty-atigen.",
-    "version": "nifty-atigen/1.0",
+    "comment": "This file was generated with dRealms-atigen.",
+    "version": "dRealms-atigen/1.0",
     "engine": {
         "name": "unity",
         "version": "2019.6.5"
@@ -69,17 +67,17 @@ Since GoodBlock Games created the original game asset they control the licensing
 
 For our example, Bethesda Game Studios is making a Sci-Fi FPS style game (one where a 2D fantasy dragon would almost certainly be out of place), so during license negotiation Bethesda works to ensure GBG is okay with allowing their dragon tokens to be represented as a visibly different asset - in this case, fantasy inspired laser rifles (EX: a water dragon in Drakos Keep becomes a specialized laser rifle with a dragonscale skin, shoots blue lasers, and has increased weapon handling). The rigidity to which asset creators must adhere to the original token design is decided during license purchase and is outside the scope of the token contract's responsibility.
 
-Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use Nifty assets this way, it is also important to understand that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game would break the immersion and look out of place in the game world.
+Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use dRealms assets this way, it is also important to understand that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game would break the immersion and look out of place in the game world.
 
 ## Roadmap
 
-**Nifty v1.0.0:**
+**dRealms v1.0.0:**
 
 1. Revise license flow and action signatures
 2. Implement DEX features
 3. Purchasable license model - additional license models
 
-**Nifty v1.1.0**
+**dRealms v1.1.0**
 
 1. ATI refinement
 2. Unity Plugin

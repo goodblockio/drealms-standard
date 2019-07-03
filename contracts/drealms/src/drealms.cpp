@@ -1,12 +1,12 @@
-#include <nifty.hpp>
+#include <drealms.hpp>
 
-nifty::nifty(name self, name code, datastream<const char*> ds) : contract(self, code, ds) {}
+drealms::drealms(name self, name code, datastream<const char*> ds) : contract(self, code, ds) {}
 
-nifty::~nifty() {}
+drealms::~drealms() {}
 
 //======================== nonfungible actions ========================
 
-ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply) {
+ACTION drealms::createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply) {
     //authenticate
     require_auth(issuer);
 
@@ -51,7 +51,7 @@ ACTION nifty::createnft(name token_name, name issuer, bool burnable, bool transf
     });
 }
 
-ACTION nifty::issuenft(name to, name token_name, string immutable_data, string memo) {
+ACTION drealms::issuenft(name to, name token_name, string immutable_data, string memo) {
     //open stats table, get token data
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -83,7 +83,7 @@ ACTION nifty::issuenft(name to, name token_name, string immutable_data, string m
     });
 }
 
-ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo) {
+ACTION drealms::transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo) {
     //authenticate
     require_auth(from);
 
@@ -115,7 +115,7 @@ ACTION nifty::transfernft(name from, name to, name token_name, vector<uint64_t> 
     require_recipient(to);
 }
 
-ACTION nifty::burnnft(name token_name, vector<uint64_t> serials, string memo) {
+ACTION drealms::burnnft(name token_name, vector<uint64_t> serials, string memo) {
     //get stats table
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -146,7 +146,7 @@ ACTION nifty::burnnft(name token_name, vector<uint64_t> serials, string memo) {
     }
 }
 
-ACTION nifty::consumenft(name token_name, uint64_t serial, string memo) {
+ACTION drealms::consumenft(name token_name, uint64_t serial, string memo) {
     //open stats table, get stat
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -170,7 +170,7 @@ ACTION nifty::consumenft(name token_name, uint64_t serial, string memo) {
     nfts.erase(nft);
 }
 
-ACTION nifty::updatenft(name token_name, uint64_t serial, string new_mutable_data) {
+ACTION drealms::updatenft(name token_name, uint64_t serial, string new_mutable_data) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -192,7 +192,7 @@ ACTION nifty::updatenft(name token_name, uint64_t serial, string new_mutable_dat
 
 //======================== licensing actions ========================
 
-ACTION nifty::setlicensing(name token_name, name new_license_model) {
+ACTION drealms::setlicensing(name token_name, name new_license_model) {
     //open stats table, get token
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -209,7 +209,7 @@ ACTION nifty::setlicensing(name token_name, name new_license_model) {
     });
 }
 
-ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration) {
+ACTION drealms::newlicense(name token_name, name owner, time_point_sec expiration) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -264,7 +264,7 @@ ACTION nifty::newlicense(name token_name, name owner, time_point_sec expiration)
     }
 }
 
-ACTION nifty::eraselicense(name token_name, name license_owner) {
+ACTION drealms::eraselicense(name token_name, name license_owner) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -286,7 +286,7 @@ ACTION nifty::eraselicense(name token_name, name license_owner) {
     licenses.erase(lic);
 }
 
-ACTION nifty::upserturi(name token_name, name license_owner, name uri_type, name uri_name, string new_uri) {
+ACTION drealms::upserturi(name token_name, name license_owner, name uri_type, name uri_name, string new_uri) {
     //open licenses table, get license
     licenses_table licenses(get_self(), token_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
@@ -343,7 +343,7 @@ ACTION nifty::upserturi(name token_name, name license_owner, name uri_type, name
     }
 }
 
-ACTION nifty::removeuri(name token_name, name license_owner, name uri_type, name uri_name) {
+ACTION drealms::removeuri(name token_name, name license_owner, name uri_type, name uri_name) {
     //open licenses table, get license
     licenses_table licenses(get_self(), token_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
@@ -391,7 +391,7 @@ ACTION nifty::removeuri(name token_name, name license_owner, name uri_type, name
 
 //========== helper functions ==========
 
-bool nifty::validate_license_model(name license_model) {
+bool drealms::validate_license_model(name license_model) {
     
     switch (license_model.value) 
     {
@@ -412,31 +412,31 @@ bool nifty::validate_license_model(name license_model) {
 
 //========== migration actions ==========
 
-ACTION nifty::delstats(name token_name) {
+ACTION drealms::delstats(name token_name) {
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
     stats.erase(stat);
 }
 
-ACTION nifty::dellic(name token_name, name license_owner) {
+ACTION drealms::dellic(name token_name, name license_owner) {
     licenses_table licenses(get_self(), token_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
     licenses.erase(lic);
 }
 
-ACTION nifty::delnft(name token_name, uint64_t serial) {
+ACTION drealms::delnft(name token_name, uint64_t serial) {
     nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
     nfts.erase(nft);
 }
 
-ACTION nifty::delcurr(symbol sym) {
+ACTION drealms::delcurr(symbol sym) {
     currencies_table currencies(get_self(), get_self().value);
     auto& curr = currencies.get(sym.code().raw(), "currency not found");
     currencies.erase(curr);
 }
 
-ACTION nifty::delacct(name owner, symbol sym) {
+ACTION drealms::delacct(name owner, symbol sym) {
     accounts_table accounts(get_self(), owner.value);
     auto& acct = accounts.get(sym.code().raw(), "account not found");
     accounts.erase(acct);

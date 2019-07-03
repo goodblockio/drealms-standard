@@ -1,8 +1,8 @@
 #! /bin/bash
 
-if [[ "$1" == "nifty" ]]; then
-    contract=nifty4gaming
-    account=nifty4gaming
+if [[ "$1" == "drealms" ]]; then
+    contract=drealms
+    account=drealms
 else
     echo "need contract"
     exit 0
