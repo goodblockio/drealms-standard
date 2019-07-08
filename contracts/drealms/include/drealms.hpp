@@ -1,8 +1,8 @@
 /**
- * The Nifty Token Standard is a lightweight cross-game NFT standard for EOSIO software.
+ * The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO software.
  * 
  * @author Craig Branscom
- * @contract nifty
+ * @contract drealms
  * @version v0.1.0
  * @copyright defined in LICENSE.txt
  */
@@ -22,13 +22,13 @@ using namespace eosio;
 //TODO?: remove burnable feature
 //TODO?: set immutable data after issue? im_data = set once, m_data = set whenever
 
-CONTRACT nifty : public contract {
+CONTRACT drealms : public contract {
 
     public:
 
-    nifty(name self, name code, datastream<const char*> ds);
+    drealms(name self, name code, datastream<const char*> ds);
 
-    ~nifty();
+    ~drealms();
 
     //constants
     const symbol CORE_SYM = symbol("TLOS", 4);
@@ -110,7 +110,7 @@ CONTRACT nifty : public contract {
     //======================== admin actions ========================
 
     //upserts config singleton
-    // ACTION setconfig(string nifty_version, symbol core_sym, name contract_owner, 
+    // ACTION setconfig(string drealms_version, symbol core_sym, name contract_owner, 
         // uint32_t default_license_length, uint32_t min_license_length, uint32_t max_license_length);
     
 
@@ -140,7 +140,7 @@ CONTRACT nifty : public contract {
     //@scope singleton
     //@ram 
     // TABLE config {
-    //     string nifty_version;
+    //     string drealms_version;
     //     symbol core_sym;
     //     name contract_owner;
     //     uint32_t default_license_length;
