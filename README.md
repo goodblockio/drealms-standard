@@ -20,6 +20,10 @@ The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO so
 
     Because of dRealms's elegant design, it uses far fewer resources to operate. Contract tables are lean and have been optimized to scale naturally by demand.
 
+## Documentation
+
+[Developer Guide](docs/DeveloperGuide.md)
+
 ## Roadmap
 
 **dRealms v1.0.0:**

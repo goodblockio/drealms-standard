@@ -1,11 +1,9 @@
-/**
- * The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO software.
- * 
- * @author Craig Branscom
- * @contract drealms
- * @version v0.1.0
- * @copyright defined in LICENSE.txt
- */
+// dRealms is a lightweight cross-game NFT standard for EOSIO software.
+// 
+// @author Craig Branscom
+// @contract drealms
+// @version v0.1.0
+// @copyright defined in LICENSE.txt
 
 #pragma once
 
@@ -18,9 +16,11 @@
 using namespace std;
 using namespace eosio;
 
+//TODO?: rename consume() to activate(), only consumes if token is consumable
 //TODO?: bulk transfernfts action
 //TODO?: remove burnable feature
 //TODO?: set immutable data after issue? im_data = set once, m_data = set whenever
+//TODO?: change immutable data and mutable data to map<name, string> types
 
 CONTRACT drealms : public contract {
 
@@ -192,8 +192,8 @@ CONTRACT drealms : public contract {
     TABLE nonfungible {
         uint64_t serial;
         name owner;
-        string immutable_data; //immutable so updates don't break composite uri
-        string mutable_data; //TODO?: make optional - std::optional<string> mutable_data;
+        string immutable_data;
+        string mutable_data; 
 
         uint64_t primary_key() const { return serial; }
         EOSLIB_SERIALIZE(nonfungible, 

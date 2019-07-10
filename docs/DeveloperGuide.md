@@ -91,6 +91,8 @@ Burns NFT(s)
 
 * `memo` is a memo for extra data.
 
+
+
 ### `consumenft()`
 
 Consumes an NFT
@@ -102,6 +104,8 @@ Consumes an NFT
 * `memo` is a memo for extra data.
 
 ### `updatenft()`
+
+
 
 Updates the mutable data on an NFT
 
