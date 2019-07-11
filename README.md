@@ -2,7 +2,7 @@
 
 The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO software.
 
-## `Features`
+## Features
 
 * `Robust Token Ownership and Authorship`
 
@@ -20,11 +20,11 @@ The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO so
 
     **Permissioned Licensing**: this setting allows token creators to individually approve additional license slots from a list of requests submitted by prospective asset developers.
 
-## `Documentation`
+## Documentation
 
 [Developer Guide](docs/DeveloperGuide.md)
 
-## `Roadmap`
+## Roadmap
 
 **dRealms v1.0.0:**
 
