@@ -46,13 +46,14 @@ ACTION drealms::createnft(name token_name, name issuer, bool burnable, bool tran
     licenses.emplace(issuer, [&](auto& col) {
         col.owner = issuer;
         col.expiration = time_point_sec(current_time_point());
+        col.checksum_algo = "";
         col.full_uris = new_full_uris;
         col.base_uris = new_base_uris;
     });
 }
 
-ACTION drealms::issuenft(name to, name token_name, string immutable_data, string memo) {
-    //open stats table, get token data
+ACTION drealms::issuenft(name to, name token_name, string memo) {
+    //open stats table, get token stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
 
@@ -62,7 +63,6 @@ ACTION drealms::issuenft(name to, name token_name, string immutable_data, string
     //validate
     check(is_account(to), "to account does not exist");
     check(stat.supply + 1 <= stat.max_supply, "token at max supply");
-    check(immutable_data != "", "immutable data cannot be blank");
 
     //open nfts table, get new serial
     nfts_table nfts(get_self(), token_name.value);
@@ -74,13 +74,20 @@ ACTION drealms::issuenft(name to, name token_name, string immutable_data, string
         col.supply += uint64_t(1);
     });
 
+    //build initial uri and checksum maps
+    map<name, string> new_relative_uris;
+    map<name, string> new_checksums;
+
     //emplace new NFT
     nfts.emplace(stat.issuer, [&](auto& col) {
         col.serial = new_serial;
         col.owner = to;
-        col.immutable_data = immutable_data;
-        col.mutable_data = "";
+        col.relative_uris = new_relative_uris;
+        col.checksums = new_checksums;
     });
+
+    //notify recipient account
+    require_recipient(to);
 }
 
 ACTION drealms::transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo) {
@@ -107,7 +114,6 @@ ACTION drealms::transfernft(name from, name to, name token_name, vector<uint64_t
         nfts.modify(nft, same_payer, [&](auto& col) {
             col.owner = to;
         });
-
     }
 
     //notify accounts
@@ -127,7 +133,7 @@ ACTION drealms::burnnft(name token_name, vector<uint64_t> serials, string memo) 
     check(stat.burnable, "token is not burnable");
     check(stat.supply >= serials.size(), "cannot burn supply below 0");
 
-    //decrement nft supply
+    //reduce nft supply
     stats.modify(stat, same_payer, [&](auto& col) {
         col.supply -= serials.size();
     });
@@ -138,10 +144,10 @@ ACTION drealms::burnnft(name token_name, vector<uint64_t> serials, string memo) 
         nfts_table nfts(get_self(), token_name.value);
         auto& nft = nfts.get(serial, "nft not found");
 
-        //check that issuer owns each nft before erasing
+        //check that issuer owns each nft before burning
         check(nft.owner == stat.issuer, "only issuer may burn tokens");
 
-        //erase nft
+        //burn nft
         nfts.erase(nft);
     }
 }
@@ -166,25 +172,32 @@ ACTION drealms::consumenft(name token_name, uint64_t serial, string memo) {
         col.supply -= uint64_t(1);
     });
 
-    //erase nft
+    //consume nft
     nfts.erase(nft);
 }
 
-ACTION drealms::updatenft(name token_name, uint64_t serial, string new_mutable_data) {
+ACTION drealms::newchecksum(name token_name, name license_owner, uint64_t serial, string new_checksum) {
     //open stats table, get stats
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
+
+    //open licenses table, get license
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
+
+    //authenticate
+    require_auth(lic.owner);
 
     //open nft table, get nft
     nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
-    //authenticate
-    require_auth(stat.issuer);
+    //validate
+    check(nft.relative_uris.find(license_owner) != nft.relative_uris.end(), "checksums must have an associated relative uri");
 
     //modify nft mutable uri
     nfts.modify(nft, same_payer, [&](auto& col) {
-        col.mutable_data = new_mutable_data;
+        col.checksums[license_owner] = new_checksum;
     });
 }
 
@@ -192,7 +205,7 @@ ACTION drealms::updatenft(name token_name, uint64_t serial, string new_mutable_d
 
 //======================== licensing actions ========================
 
-ACTION drealms::setlicensing(name token_name, name new_license_model) {
+ACTION drealms::setlicmodel(name token_name, name new_license_model) {
     //open stats table, get token
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
@@ -253,6 +266,7 @@ ACTION drealms::newlicense(name token_name, name owner, time_point_sec expiratio
         licenses.emplace(ram_payer, [&](auto& col) {
             col.owner = owner;
             col.expiration = new_expiration;
+            col.checksum_algo = "";
             col.full_uris = new_full_uris;
             col.base_uris = new_base_uri;
         });
@@ -269,81 +283,56 @@ ACTION drealms::eraselicense(name token_name, name license_owner) {
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
 
-    //authenticate
-    require_auth(stat.issuer);
-
     //open licenses table, get license
     licenses_table licenses(get_self(), token_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
 
-    //TODO?: use alternative revocation?
-    //update license expiration to now (alternative to erasing license)
-    // licenses.modify(lic, same_payer, [&](auto& col){
-    //     col.expiration = time_point_sec(current_time_point());
-    // });
+    //determine if expired
+    bool expired = time_point_sec(current_time_point()) > lic.expiration;
+
+    //authenticate based on expired
+    if (expired) {
+        check(has_auth(lic.owner) || has_auth(stat.issuer), "only token issuer or license owner may erase after expiration");
+    } else {
+        require_auth(lic.owner);
+    }
+    
+    //validate
+    check(expired, "license has not expired");
 
     //erase license slot
     licenses.erase(lic);
 }
 
-ACTION drealms::upserturi(name token_name, name license_owner, name uri_type, name uri_name, string new_uri) {
-    //open licenses table, get license
+ACTION drealms::setalgo(name token_name, name license_owner, string new_checksum_algo) {
+    //open license table, search for license
     licenses_table licenses(get_self(), token_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
 
     //authenticate
     require_auth(lic.owner);
 
-    //validate
-    check(uri_type == name("full") || uri_type == name("base"), "invalid uri type");
-
-    //initialize uri map
-    map<name, string> uri_list;
-
-    //branch based on uri_type
-    if (uri_type == name("full")) {
-        uri_list = lic.full_uris;
-    } else if (uri_type == name("base")) {
-        uri_list = lic.base_uris;
-    }
-
-    //find fee in fees list
-    auto itr = uri_list.find(uri_name);
-
-    //update uri if found, insert if not found
-    if (itr != uri_list.end()) {
-        //update uri
-        uri_list[uri_name] = new_uri;
-
-        //update correct uri list
-        if (uri_type == name("full")) {
-            //update uri list
-            licenses.modify(lic, same_payer, [&](auto& col) {
-                col.full_uris = uri_list;
-            });
-        } else if (uri_type == name("base")) {
-            //update uri list
-            licenses.modify(lic, same_payer, [&](auto& col) {
-                col.base_uris = uri_list;
-            });
-        }
-    } else {
-        //update correct uri list
-        if (uri_type == name("full")) {
-            //insert new uri in list
-            licenses.modify(lic, same_payer, [&](auto& col) {
-                col.full_uris.insert(pair<name, string>(name(uri_name), new_uri));
-            });
-        } else if (uri_type == name("base")) {
-            //insert new uri in list
-            licenses.modify(lic, same_payer, [&](auto& col) {
-                col.base_uris.insert(pair<name, string>(name(uri_name), new_uri));
-            });
-        }
-    }
+    //set new checksum algorithm
+    licenses.modify(lic, same_payer, [&](auto& col) {
+        col.checksum_algo = new_checksum_algo;
+    });
 }
 
-ACTION drealms::removeuri(name token_name, name license_owner, name uri_type, name uri_name) {
+ACTION drealms::setati(name token_name, name license_owner, string new_ati_uri) {
+    //open license table, search for license
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
+
+    //authenticate
+    require_auth(lic.owner);
+
+    //set new ati uri
+    licenses.modify(lic, same_payer, [&](auto& col) {
+        col.full_uris[name("ati")] = new_ati_uri;
+    });
+}
+
+ACTION drealms::newuri(name token_name, name license_owner, name uri_group, name uri_name, string new_uri, optional<uint64_t> serial) {
     //open licenses table, get license
     licenses_table licenses(get_self(), token_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
@@ -351,40 +340,104 @@ ACTION drealms::removeuri(name token_name, name license_owner, name uri_type, na
     //authenticate
     require_auth(lic.owner);
 
-    //validate
-    check(uri_type == name("full") || uri_type == name("base"), "invalid uri type");
+    //modify appropriate uri list
+    if (uri_group == name("full")) { //update full uri
+        
+        //update full uri
+        licenses.modify(lic, same_payer, [&](auto& col) {
+            col.full_uris[uri_name] = new_uri;
+        });
 
-    //initialize uri map
-    map<name, string> uri_list;
+    } else if (uri_group == name("base")) { //update base uri
 
-    //branch based on uri_type
-    if (uri_type == name("full")) {
-        uri_list = lic.full_uris;
-    } else if (uri_type == name("base")) {
-        uri_list = lic.base_uris;
+        //update base uri
+        licenses.modify(lic, same_payer, [&](auto& col) {
+            col.base_uris[uri_name] = new_uri;
+        });
+
+    } else if (uri_group == name("relative")) { //update relative uri
+
+        //check for serial
+        if (!serial) {
+            check(false, "must provide serial to update relative uri");
+        }
+
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), token_name.value);
+        auto& nft = nfts.get(*serial, "nft not found");
+
+        //update relative uri
+        nfts.modify(nft, same_payer, [&](auto& col) {
+            col.relative_uris[license_owner] = new_uri;
+        });
+
+    } else { //invalid uri group
+        check(false, "invalid uri group");
     }
 
-    //find uri in uris list
-    auto itr = uri_list.find(uri_name);
+}
 
-    //valdiate
-    check(itr != uri_list.end(), "uri name not found");
+ACTION drealms::deleteuri(name token_name, name license_owner, name uri_group, name uri_name, optional<uint64_t> serial) {
+    //open licenses table, get license
+    licenses_table licenses(get_self(), token_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
 
-    //remove uri from list
-    uri_list.erase(itr);
+    //authenticate
+    require_auth(lic.owner);
 
-    //update correct uri list
-    if (uri_type == name("full")) {
-        //update uri list
+    //delete uri from appropriate list
+    if (uri_group == name("full")) { //delete full uri
+
+        //find uri in uris list
+        auto full_itr = lic.full_uris.find(uri_name);
+
+        //validate
+        check(full_itr != lic.full_uris.end(), "uri name not found in full uris");
+        
+        //delete full uri
         licenses.modify(lic, same_payer, [&](auto& col) {
-            col.full_uris = uri_list;
+            col.full_uris.erase(full_itr);
         });
-    } else if (uri_type == name("base")) {
-        //update uri list
+
+    } else if (uri_group == name("base")) { //delete base uri
+
+        //find uri in uris list
+        auto base_itr = lic.base_uris.find(uri_name);
+
+        //validate
+        check(base_itr != lic.base_uris.end(), "uri name not found in base uris");
+        
+        //delete base uri
         licenses.modify(lic, same_payer, [&](auto& col) {
-            col.base_uris = uri_list;
+            col.base_uris.erase(base_itr);
         });
+
+    } else if (uri_group == name("relative")) { //delete relative uri
+
+        //check for serial
+        if (!serial) {
+            check(false, "must provide serial to delete relative uri");
+        }
+
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), token_name.value);
+        auto& nft = nfts.get(*serial, "nft not found");
+
+        //find uri in uris list
+        auto rel_itr = nft.relative_uris.find(license_owner);
+
+        //validate
+        check(rel_itr != nft.relative_uris.end(), "uri name not found in relative uris");
+
+        //update relative uri
+        nfts.modify(nft, same_payer, [&](auto& col) {
+            col.relative_uris.erase(rel_itr);
+        });
+
+    } else { //invalid uri group
+        check(false, "invalid uri group");
     }
+
 }
 
 
@@ -400,6 +453,23 @@ bool drealms::validate_license_model(name license_model) {
         case name("open").value : 
             break;
         case name("permissioned").value :
+            break;
+        default:
+            return false;
+    }
+
+    return true;
+}
+
+bool drealms::validate_uri_group(name uri_group) {
+    
+    switch (uri_group.value) 
+    {
+        case name("full").value :
+            break;
+        case name("base").value : 
+            break;
+        case name("relative").value :
             break;
         default:
             return false;
