@@ -35,7 +35,7 @@ The following is a description of the dRealms NFT interface:
 
 ### `createnft()`
 
-Creates a new NFT family
+Creates a new NFT Family
 
 * `token_name` is the name of the new token family.
 
@@ -58,8 +58,6 @@ Issues a new NFT
 * `to` is the account to receive the issued NFT.
 
 * `token_name` is the token family of the NFT to issue.
-
-* `immutable_data` is the immutable data for the NFT.
 
 * `memo` is a memo for extra data.
 
@@ -103,17 +101,19 @@ Consumes an NFT
 
 * `memo` is a memo for extra data.
 
-### `updatenft()`
 
 
+### `newchecksum()`
 
-Updates the mutable data on an NFT
+Inserts or overwrites a checksum on an NFT
 
 * `token_name` is the token family of the NFT to update.
 
+* `licesne_owner` is the name of the license owner.
+
 * `serial` is the serial number of the NFT to update.
 
-* `new_mutable_data` is the new mutable data to assign to the NFT.
+* `new_checksum` is the new checksum to save to the NFT.
 
 
 
@@ -123,7 +123,9 @@ The following is a description of the dRealms License interface:
 
 
 
-### `setlicensing()`
+### `setlicmodel()`
+
+Sets a new license model on a token family.
 
 * `token_name` is the token family to accept the new license model.
 
@@ -132,6 +134,8 @@ The following is a description of the dRealms License interface:
 
 
 ### `newlicense()`
+
+Creates or renews a license.
 
 * `token_name` is the token family receiving the new license.
 
@@ -143,35 +147,65 @@ The following is a description of the dRealms License interface:
 
 ### `eraselicense()`
 
+Erases a license.
+
 * `token_name` is the token family to erase the license from.
 
 * `license_owner` is the owner of the license to erase.
 
 
 
-### `upserturi()`
+### `setalgo`
+
+Sets a new checksum algorithm on a license.
+
+* `token_name` is the token family of the license.
+
+* `license_owner` is the name of the license owner.
+
+* `new_checksum_algo` is the new checksum algorithm. e.g. "sha256", "md5", etc.
+
+
+
+### `newati`
+
+Sets a new checksum algorithm on a license.
+
+* `token_name` is the token family of the license.
+
+* `license_owner` is the name of the license owner.
+
+* `new_ati_uri` is the new endpoint storing the license ATI.
+
+
+
+### `newuri()`
 
 * `token_name` is the token family to upsert the uri for.
 
 * `license_owner` is the owner of the license being updated.
 
-* `uri_type` is the type of the new uri ("full" or "base").
+* `uri_group` is the group of the new uri ("full", "base", or "relative").
 
 * `uri_name` is the name of the new uri.
 
 * `new_uri` is the uri as a string.
 
+* `optinal: serial` if updating a relative uri, the serial number of the NFT to update.
 
 
-### `removeuri()`
 
-* `token_name` is the token family to remove the uri from.
+### `deleteuri()`
 
-* `license_owner` is the owner of the license being removed.
+* `token_name` is the token family to delete the uri from.
 
-* `uri_type` is the type of the uri to remove ("full" or "base").
+* `license_owner` is the license owner of the uri being deleted.
 
-* `uri_name` is the name of the uri to remove.
+* `uri_group` is the group of the new uri ("full", "base", or "relative").
+
+* `uri_name` is the name of the uri to delete.
+
+* `optinal: serial` if deleteing a relative uri, the serial number of the NFT to delete from.
 
 
 

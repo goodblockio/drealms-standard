@@ -16,11 +16,14 @@
 using namespace std;
 using namespace eosio;
 
-//TODO?: rename consume() to activate(), only consumes if token is consumable
+//TODO?: keep require_recipient(to) in the issue() action
 //TODO?: bulk transfernfts action
-//TODO?: remove burnable feature
-//TODO?: set immutable data after issue? im_data = set once, m_data = set whenever
-//TODO?: change immutable data and mutable data to map<name, string> types
+//TODO?: rename consume() to activate(), only consumes if token is consumable
+//TODO?: remove burnable feature, easily confused with consumable
+//TODO?: use alternative license erasing? could just expire that way it keeps the table data
+
+//TODO: add revokelic() that revokes an active license (only by issuer)
+//TODO: rename all instances of token_name to token_family - easier to understand diff between tokens and token stats
 
 CONTRACT drealms : public contract {
 
@@ -43,7 +46,7 @@ CONTRACT drealms : public contract {
     ACTION createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply);
 
     //issues a new NFT token
-    ACTION issuenft(name to, name token_name, string immutable_data, string memo);
+    ACTION issuenft(name to, name token_name, string memo);
 
     //transfers nft(s) of a single token name to recipient account, if transferable
     ACTION transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo);
@@ -54,27 +57,33 @@ CONTRACT drealms : public contract {
     //consumes an nft, if consumable
     ACTION consumenft(name token_name, uint64_t serial, string memo);
 
-    //edits nft uris
-    ACTION updatenft(name token_name, uint64_t serial, string new_mutable_data);
+    //updates a checksum if found, inserts if not found
+    ACTION newchecksum(name token_name, name license_owner, uint64_t serial, string new_checksum);
 
 
 
     //======================== licensing actions ========================
 
     //sets new license model on existing token stats
-    ACTION setlicensing(name token_name, name new_license_model);
+    ACTION setlicmodel(name token_name, name new_license_model);
 
     //adds a new license
     ACTION newlicense(name token_name, name owner, time_point_sec expiration);
 
-    //revokes a license
+    //erases a license
     ACTION eraselicense(name token_name, name license_owner);
 
-    //updates a uri if found, inserts if not found
-    ACTION upserturi(name token_name, name license_owner, name uri_type, name uri_name, string new_uri);
+    //sets a license's checksum algorithm
+    ACTION setalgo(name token_name, name license_owner, string new_checksum_algo);
 
-    //removes a uri
-    ACTION removeuri(name token_name, name license_owner, name uri_type, name uri_name);
+    //updates a license's ATI
+    ACTION setati(name token_name, name license_owner, string new_ati_uri);
+
+    //updates a uri if found, inserts if not found
+    ACTION newuri(name token_name, name license_owner, name uri_group, name uri_name, string new_uri, optional<uint64_t> serial);
+
+    //deletes a uri
+    ACTION deleteuri(name token_name, name license_owner, name uri_group, name uri_name, optional<uint64_t> serial);
 
 
 
@@ -119,6 +128,7 @@ CONTRACT drealms : public contract {
 
     bool validate_license_model(name license_model);
 
+    bool validate_uri_group(name uri_group);
 
 
     //========== migration actions ==========
@@ -178,11 +188,12 @@ CONTRACT drealms : public contract {
     TABLE license {
         name owner;
         time_point_sec expiration;
+        string checksum_algo;
         map<name, string> full_uris;
         map<name, string> base_uris;
         
         uint64_t primary_key() const { return owner.value; }
-        EOSLIB_SERIALIZE(license, (owner)(expiration)(full_uris)(base_uris))
+        EOSLIB_SERIALIZE(license, (owner)(expiration)(checksum_algo)(full_uris)(base_uris))
     };
     typedef multi_index<name("licenses"), license> licenses_table;
 
@@ -192,12 +203,12 @@ CONTRACT drealms : public contract {
     TABLE nonfungible {
         uint64_t serial;
         name owner;
-        string immutable_data;
-        string mutable_data; 
+        map<name, string> relative_uris;
+        map<name, string> checksums;
 
         uint64_t primary_key() const { return serial; }
         EOSLIB_SERIALIZE(nonfungible, 
-            (serial)(owner)(immutable_data)(mutable_data))
+            (serial)(owner)(relative_uris)(checksums))
     };
     typedef multi_index<name("nfts"), nonfungible> nfts_table;
 
