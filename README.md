@@ -10,7 +10,7 @@ The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO so
 
 * `Lightweight and Scalable Design`
 
-    Because of dRealms's elegant design, it uses far fewer resources to operate. Contract tables are lean and have been optimized to scale naturally by demand.
+    Because of dRealms' elegant contract design, it uses far fewer resources to operate compared to other NFT contracts. Contract tables are lean and have been optimized to scale naturally by demand, without hogging up unecessary resources.
 
 * `Custom Licensing Models`
 
@@ -19,6 +19,10 @@ The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO so
     **Open Licensing**: this setting allows any user to reserve a license slot for an NFT for free (not counting RAM costs). This setting is desirable if asset creators want their NFTs to be heavily modifiable and open for all asset creators to use.
 
     **Permissioned Licensing**: this setting allows token creators to individually approve additional license slots from a list of requests submitted by prospective asset developers.
+
+* `dRealms Application Token Interface (ATI)`
+
+    dRealms' unique ATI feature makes creating NFT assets as easy as regular game objects, meaning developers can build games in a familiar way but easily flag certain game objects as having an NFT counterpart logged on-chain. This allows game engines to build "default" game objects from the ATI and then render the object after being returned the actual values from the chain.
 
 ## Documentation
 

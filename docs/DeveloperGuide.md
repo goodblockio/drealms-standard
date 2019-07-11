@@ -6,16 +6,11 @@ dRealms is a lightweight cross-game NFT standard for EOSIO software.
 
 To begin, navigate to the base project folder: `drealms-standard/`
 
-    cd contracts && mkdir build
-
-    cd build && mkdir drealms
-
-    cd ..
+    cd contracts && mkdir build && mkdir build/drealms
 
     chmod +x build.sh
 
     chmod +x deploy.sh
-
 
 #### Build
 
@@ -155,7 +150,7 @@ Erases a license.
 
 
 
-### `setalgo`
+### `setalgo()`
 
 Sets a new checksum algorithm on a license.
 
@@ -167,9 +162,9 @@ Sets a new checksum algorithm on a license.
 
 
 
-### `newati`
+### `setati()`
 
-Sets a new checksum algorithm on a license.
+Sets a new ATI on a license.
 
 * `token_name` is the token family of the license.
 
@@ -264,10 +259,10 @@ An ATI defines data types and formatting so the dRealms Unity Plugin knows what 
 
 ## Development Example
 
-**Scenario**: GoodBlock Games has launched a new title where in-game dragons are tokenized on the Telos Blockchain, and Bethesda Game Studios wants to build a game where those same dragon tokens are imported and usable in their game. 
+**Scenario**: GoodBlock Games has launched a new title where in-game dragons are tokenized on the Telos Blockchain, and Bethesda Game Studios wants to build a game where those same dragon tokens are importable and usable in their game. 
 
-Since GoodBlock Games created the original game asset they control the licensing rights to their dragon token, and therefore may allow or disallow Bethesda Game Studios to get a new license slot for the dragon tokens. When GoodBlock Games created their dragon tokens they set the licensing model to **Permissioned Licensing**, meaning new license slots are obtainable through approval by GoodBlock Games. GoodBlock Games and Bethesda Game Studios negotiate a deal, and GoodBlock Games agrees to give Bethesda Game Studios a 1-year license slot for GBG's dragon assets. The deal is accepted by both parties and the license slot is opened on-chain.
+Since GoodBlock Games created the original game asset they control the licensing rights to their dragon token, and therefore may allow or disallow Bethesda Game Studios to get a new license slot for the dragon tokens. When GoodBlock Games created their dragon tokens they set the licensing model to **Permissioned Licensing**, meaning new license slots are only obtainable through on-chain approval by GoodBlock Games. GoodBlock Games and Bethesda Game Studios negotiate a deal, and GoodBlock Games agrees to give Bethesda Game Studios a 1-year license slot for the dragon tokens. The deal is accepted by both parties and the license slot is opened on-chain.
 
-For our example, Bethesda Game Studios is making a Sci-Fi FPS style game (one where a 2D fantasy dragon would almost certainly be out of place), so during license negotiation Bethesda works to ensure GBG is okay with allowing their dragon tokens to be represented as a visibly different asset - in this case, fantasy inspired laser rifles (EX: a water dragon in Drakos Keep becomes a specialized laser rifle with a dragonscale skin, shoots blue lasers, and has increased weapon handling). The rigidity to which asset creators must adhere to the original token design is decided during license purchase and is outside the scope of the token contract's responsibility.
+Bethesda Game Studios' new game is a Sci-Fi FPS style shoooter (one where a 2D fantasy dragon would almost certainly be out of place), so during license negotiation Bethesda works to ensure GBG approves of the representation their dragon tokens will have within BGS's game - in this case, fantasy inspired laser rifles (EX: a water dragon in Drakos Keep becomes a specialized laser rifle with a dragonscale skin, shoots blue lasers, and has increased weapon handling). The rigidity to which asset creators must adhere to the original token design is decided during license negotioation and is outside the scope of the token contract's responsibility.
 
-Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use dRealms assets this way, it is also important to understand that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game would break the immersion and look out of place in the game world.
+Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use dRealms assets this way, it is also important to understand that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game could break immersion and game balance.
