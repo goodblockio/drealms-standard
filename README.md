@@ -2,11 +2,15 @@
 
 The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO software.
 
-## Features
+## `Features`
 
-* `Maintain Token Ownership and Authorship`
+* `Robust Token Ownership and Authorship`
 
     dRealms offers the ideal ownership/authorship model for token economics. The current tokenomics paradigm pushes for 'complete ownership', whether that design works for every use case or not. dRealms offers a suite of tokenomics designs and developers can choose which one best suits their unique business model.
+
+* `Lightweight and Scalable Design`
+
+    Because of dRealms's elegant design, it uses far fewer resources to operate. Contract tables are lean and have been optimized to scale naturally by demand.
 
 * `Custom Licensing Models`
 
@@ -16,22 +20,17 @@ The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO so
 
     **Permissioned Licensing**: this setting allows token creators to individually approve additional license slots from a list of requests submitted by prospective asset developers.
 
-* `Lightweight and Scalable`
-
-    Because of dRealms's elegant design, it uses far fewer resources to operate. Contract tables are lean and have been optimized to scale naturally by demand.
-
-## Documentation
+## `Documentation`
 
 [Developer Guide](docs/DeveloperGuide.md)
 
-## Roadmap
+## `Roadmap`
 
 **dRealms v1.0.0:**
 
 1. Revise license flow and action signatures
 2. Implement DEX features
 3. Purchasable license model - additional license models
-4. Add map of uris to NFT table
 
 **dRealms v1.1.0**
 
