@@ -138,7 +138,7 @@ public:
         uint32_t min_license_length;
         uint32_t max_license_length;
     };
-    typedef singleton<name("configs"), config> configs_singleton;
+    typedef singleton<name("config"), config> configs_singleton;
 
     //scope: get_self().value
     //ram: ~507 bytes

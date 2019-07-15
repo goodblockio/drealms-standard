@@ -16,7 +16,7 @@ ACTION drealms::setconfig(string drealms_version, symbol core_sym, name contract
     configs_singleton configs(get_self(), get_self().value);
 
     //build new config
-    config new_config = {
+    auto new_config = config{
         drealms_version, //drealms_version
         core_sym, //core_sym
         contract_owner, //contract_owner
