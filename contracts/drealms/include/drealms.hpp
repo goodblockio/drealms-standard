@@ -100,6 +100,9 @@ public:
     //transfers fungible tokens
     ACTION transfer(name from, name to, asset quantity, string memo);
 
+    //consumes a fungible token
+    ACTION consume(name owner, asset quantity, string memo);
+
     //opens a zero balance wallet
     ACTION open(name owner, symbol token_sym, name ram_payer);
 
@@ -122,18 +125,6 @@ public:
     void add_balance(name to, asset quantity, name ram_payer);
 
     void sub_balance(name from, asset quantity);
-
-    //========== migration actions ==========
-
-    ACTION delstats(name token_name);
-
-    ACTION dellic(name token_name, name license_owner);
-
-    ACTION delnft(name token_name, uint64_t serial);
-
-    ACTION delcurr(symbol sym);
-
-    ACTION delacct(name owner, symbol sym);
 
     //======================== tables ========================
 

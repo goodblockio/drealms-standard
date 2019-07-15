@@ -217,10 +217,7 @@ ACTION drealms::newchecksum(name token_name, name license_owner, uint64_t serial
     nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
-    //validate
-    check(nft.relative_uris.find(license_owner) != nft.relative_uris.end(), "checksums must have an associated relative uri");
-
-    //modify nft mutable uri
+    //modify nft relative uri
     nfts.modify(nft, same_payer, [&](auto& col) {
         col.checksums[license_owner] = new_checksum;
     });
@@ -571,6 +568,7 @@ ACTION drealms::transfer(name from, name to, asset quantity, string memo) {
     auto& curr = currencies.get(quantity.symbol.code().raw(), "currency not found");
 
     //validate
+    check(curr.transferable, "currency is not transferable");
     check(quantity.symbol == curr.supply.symbol, "symbol precision mismatch");
 
     //determine ram payer
@@ -582,6 +580,32 @@ ACTION drealms::transfer(name from, name to, asset quantity, string memo) {
     //notify from and to accounts
     require_recipient(from);
     require_recipient(to);
+}
+
+ACTION drealms::consume(name owner, asset quantity, string memo) {
+    //authenticate
+    require_auth(owner);
+
+    //open currencies table, get currency
+    currencies_table currencies(get_self(), get_self().value);
+    auto& curr = currencies.get(quantity.symbol.code().raw(), "currency not found");
+
+    //validate
+    check(curr.consumable, "currency is not consumable");
+    check(quantity.symbol == curr.supply.symbol, "symbol precision mismatch");
+    check(quantity <= curr.supply, "cannot consume supply below zero");
+    check(quantity.symbol.is_valid(), "invalid symbol name");
+    check(quantity.is_valid(), "invalid quantity");
+    check(quantity.amount > 0, "must consume positive quantity");
+    check(memo.size() <= 256, "memo has more than 256 bytes");
+
+    //update currencies table
+    currencies.modify(curr, same_payer, [&](auto& col) {
+       col.supply -= quantity;
+    });
+
+    //remove quantity from owner
+    sub_balance(owner, quantity);
 }
 
 ACTION drealms::open(name owner, symbol token_sym, name ram_payer) {
@@ -689,37 +713,5 @@ void drealms::sub_balance(name from, asset quantity) {
     from_accts.modify(from_acct, from, [&](auto& col) {
         col.balance -= quantity;
     });
-}
-
-//========== migration actions ==========
-
-ACTION drealms::delstats(name token_name) {
-    stats_table stats(get_self(), get_self().value);
-    auto& stat = stats.get(token_name.value, "token stats not found");
-    stats.erase(stat);
-}
-
-ACTION drealms::dellic(name token_name, name license_owner) {
-    licenses_table licenses(get_self(), token_name.value);
-    auto& lic = licenses.get(license_owner.value, "license not found");
-    licenses.erase(lic);
-}
-
-ACTION drealms::delnft(name token_name, uint64_t serial) {
-    nfts_table nfts(get_self(), token_name.value);
-    auto& nft = nfts.get(serial, "nft not found");
-    nfts.erase(nft);
-}
-
-ACTION drealms::delcurr(symbol sym) {
-    currencies_table currencies(get_self(), get_self().value);
-    auto& curr = currencies.get(sym.code().raw(), "currency not found");
-    currencies.erase(curr);
-}
-
-ACTION drealms::delacct(name owner, symbol sym) {
-    accounts_table accounts(get_self(), owner.value);
-    auto& acct = accounts.get(sym.code().raw(), "account not found");
-    accounts.erase(acct);
 }
                                                                                                             
