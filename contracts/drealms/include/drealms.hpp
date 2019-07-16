@@ -43,45 +43,45 @@ public:
     //======================== nonfungible actions ========================
 
     //creates a new token stat, initially sets licensing to disabled
-    ACTION createnft(name token_name, name issuer, bool retirable, bool transferable, bool consumable, uint64_t max_supply);
+    ACTION createnft(name new_token_family, name issuer, bool retirable, bool transferable, bool consumable, uint64_t max_supply);
 
     //issues a new NFT token
-    ACTION issuenft(name to, name token_name, string memo);
+    ACTION issuenft(name to, name token_family, string memo);
 
     //retires nft(s) of a single token name, if retirable
-    ACTION retirenft(name token_name, vector<uint64_t> serials, string memo);
+    ACTION retirenft(name token_family, vector<uint64_t> serials, string memo);
 
     //transfers nft(s) of a single token name to recipient account, if transferable
-    ACTION transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo);
+    ACTION transfernft(name from, name to, name token_family, vector<uint64_t> serials, string memo);
 
     //consumes an nft, if consumable
-    ACTION consumenft(name token_name, uint64_t serial, string memo);
+    ACTION consumenft(name token_family, uint64_t serial, string memo);
 
     //updates a checksum if found, inserts if not found
-    ACTION newchecksum(name token_name, name license_owner, uint64_t serial, string new_checksum);
+    ACTION newchecksum(name token_family, name license_owner, uint64_t serial, string new_checksum);
 
     //======================== licensing actions ========================
 
     //sets new license model on existing token stats
-    ACTION setlicmodel(name token_name, name new_license_model);
+    ACTION setlicmodel(name token_family, name new_license_model);
 
     //adds a new license
-    ACTION newlicense(name token_name, name owner, time_point_sec expiration);
+    ACTION newlicense(name token_family, name owner, time_point_sec expiration);
 
     //erases a license
-    ACTION eraselicense(name token_name, name license_owner);
+    ACTION eraselicense(name token_family, name license_owner);
 
     //sets a license's checksum algorithm
-    ACTION setalgo(name token_name, name license_owner, string new_checksum_algo);
+    ACTION setalgo(name token_family, name license_owner, string new_checksum_algo);
 
     //updates a license's ATI
-    ACTION setati(name token_name, name license_owner, string new_ati_uri);
+    ACTION setati(name token_family, name license_owner, string new_ati_uri);
 
     //updates a uri if found, inserts if not found
-    ACTION newuri(name token_name, name license_owner, name uri_group, name uri_name, string new_uri, optional<uint64_t> serial);
+    ACTION newuri(name token_family, name license_owner, name uri_group, name uri_name, string new_uri, optional<uint64_t> serial);
 
     //deletes a uri
-    ACTION deleteuri(name token_name, name license_owner, name uri_group, name uri_name, optional<uint64_t> serial);
+    ACTION deleteuri(name token_family, name license_owner, name uri_group, name uri_name, optional<uint64_t> serial);
 
     //======================== fungible actions ========================
 
@@ -139,8 +139,8 @@ public:
 
     //scope: get_self().value
     //ram: ~507 bytes
-    TABLE stats {
-        name token_name;
+    TABLE family {
+        name family_name;
         name issuer;
         name license_model;
         bool retirable;
@@ -150,15 +150,15 @@ public:
         uint64_t issued_supply;
         uint64_t max_supply;
 
-        uint64_t primary_key() const { return token_name.value; }
-        EOSLIB_SERIALIZE(stats, 
-            (token_name)(issuer)(license_model)
+        uint64_t primary_key() const { return family_name.value; }
+        EOSLIB_SERIALIZE(family, 
+            (family_name)(issuer)(license_model)
             (retirable)(transferable)(consumable)
             (supply)(issued_supply)(max_supply))
     };
-    typedef multi_index<name("stats"), stats> stats_table;
+    typedef multi_index<name("families"), family> families_table;
 
-    //scope: token_name.value
+    //scope: family_name.value
     //ram: ~303 bytes
     TABLE license {
         name owner;
@@ -172,7 +172,7 @@ public:
     };
     typedef multi_index<name("licenses"), license> licenses_table;
 
-    //scope: token_name.value
+    //scope: family_name.value
     //ram: ~198 bytes
     TABLE nonfungible {
         uint64_t serial;
