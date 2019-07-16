@@ -4,9 +4,33 @@ drealms::drealms(name self, name code, datastream<const char*> ds) : contract(se
 
 drealms::~drealms() {}
 
+//======================== admin actions ========================
+
+ACTION drealms::setconfig(string drealms_version, symbol core_sym, name contract_owner, 
+    uint32_t min_license_length, uint32_t max_license_length) {
+    
+    //authenticate
+    require_auth(get_self());
+
+    //open configs singleton
+    configs_singleton configs(get_self(), get_self().value);
+
+    //build new config
+    auto new_config = config{
+        drealms_version, //drealms_version
+        core_sym, //core_sym
+        contract_owner, //contract_owner
+        min_license_length, //min_license_length
+        max_license_length, //max_license_length
+    };
+
+    //set new config
+    configs.set(new_config, get_self());
+}
+
 //======================== nonfungible actions ========================
 
-ACTION drealms::createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply) {
+ACTION drealms::createnft(name token_name, name issuer, bool retirable, bool transferable, bool consumable, uint64_t max_supply) {
     //authenticate
     require_auth(issuer);
 
@@ -23,7 +47,7 @@ ACTION drealms::createnft(name token_name, name issuer, bool burnable, bool tran
         col.token_name = token_name;
         col.issuer = issuer;
         col.license_model = name("disabled");
-        col.burnable = burnable;
+        col.retirable = retirable;
         col.transferable = transferable;
         col.consumable = consumable;
         col.supply = uint64_t(0);
@@ -90,6 +114,37 @@ ACTION drealms::issuenft(name to, name token_name, string memo) {
     require_recipient(to);
 }
 
+ACTION drealms::retirenft(name token_name, vector<uint64_t> serials, string memo) {
+    //get stats table
+    stats_table stats(get_self(), get_self().value);
+    auto& stat = stats.get(token_name.value, "token stats not found");
+
+    //authenticate
+    require_auth(stat.issuer);
+
+    //validate
+    check(stat.retirable, "token is not retirable");
+    check(stat.supply >= serials.size(), "cannot retire supply below 0");
+
+    //reduce nft supply
+    stats.modify(stat, same_payer, [&](auto& col) {
+        col.supply -= serials.size();
+    });
+
+    //loop over each serial and erase nft
+    for (uint64_t serial : serials) {
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), token_name.value);
+        auto& nft = nfts.get(serial, "nft not found");
+
+        //check that issuer owns each nft before retiring
+        check(nft.owner == stat.issuer, "only issuer may retire tokens");
+
+        //retire nft
+        nfts.erase(nft);
+    }
+}
+
 ACTION drealms::transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo) {
     //authenticate
     require_auth(from);
@@ -119,37 +174,6 @@ ACTION drealms::transfernft(name from, name to, name token_name, vector<uint64_t
     //notify accounts
     require_recipient(from);
     require_recipient(to);
-}
-
-ACTION drealms::burnnft(name token_name, vector<uint64_t> serials, string memo) {
-    //get stats table
-    stats_table stats(get_self(), get_self().value);
-    auto& stat = stats.get(token_name.value, "token stats not found");
-
-    //authenticate
-    require_auth(stat.issuer);
-
-    //validate
-    check(stat.burnable, "token is not burnable");
-    check(stat.supply >= serials.size(), "cannot burn supply below 0");
-
-    //reduce nft supply
-    stats.modify(stat, same_payer, [&](auto& col) {
-        col.supply -= serials.size();
-    });
-
-    //loop over each serial and erase nft
-    for (uint64_t serial : serials) {
-        //open nfts table, get nft
-        nfts_table nfts(get_self(), token_name.value);
-        auto& nft = nfts.get(serial, "nft not found");
-
-        //check that issuer owns each nft before burning
-        check(nft.owner == stat.issuer, "only issuer may burn tokens");
-
-        //burn nft
-        nfts.erase(nft);
-    }
 }
 
 ACTION drealms::consumenft(name token_name, uint64_t serial, string memo) {
@@ -192,16 +216,11 @@ ACTION drealms::newchecksum(name token_name, name license_owner, uint64_t serial
     nfts_table nfts(get_self(), token_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
-    //validate
-    check(nft.relative_uris.find(license_owner) != nft.relative_uris.end(), "checksums must have an associated relative uri");
-
-    //modify nft mutable uri
+    //modify nft relative uri
     nfts.modify(nft, same_payer, [&](auto& col) {
         col.checksums[license_owner] = new_checksum;
     });
 }
-
-
 
 //======================== licensing actions ========================
 
@@ -227,11 +246,15 @@ ACTION drealms::newlicense(name token_name, name owner, time_point_sec expiratio
     stats_table stats(get_self(), get_self().value);
     auto& stat = stats.get(token_name.value, "token stats not found");
 
+    //open configs singleton, get configs
+    configs_singleton configs(get_self(), get_self().value);
+    auto current_configs = configs.get();
+
     //intialize defaults
     name ram_payer = owner;
-    time_point_sec new_expiration = time_point_sec(current_time_point()) + DEFAULT_LICENSE_LENGTH;
-    time_point_sec min_expiration = time_point_sec(current_time_point()) + MIN_LICENSE_LENGTH;
-    time_point_sec max_expiration = time_point_sec(current_time_point()) + MAX_LICENSE_LENGTH;
+    time_point_sec new_expiration;
+    time_point_sec min_expiration = time_point_sec(current_time_point()) + current_configs.min_license_length;
+    time_point_sec max_expiration = time_point_sec(current_time_point()) + current_configs.max_license_length;
 
     //validate
     switch (stat.license_model.value) 
@@ -440,7 +463,189 @@ ACTION drealms::deleteuri(name token_name, name license_owner, name uri_group, n
 
 }
 
+//======================== fungible actions ========================
 
+ACTION drealms::create(name issuer, bool retirable, bool transferable, bool consumable, asset max_supply) {
+    //authenticate
+    require_auth(issuer);
+
+    //validate
+    check(max_supply.symbol.is_valid(), "invalid symbol name");
+    check(max_supply.is_valid(), "invalid supply");
+    check(max_supply.amount > 0, "max supply must be positive");
+
+    //open currencies table, search for currency
+    currencies_table currencies(get_self(), get_self().value);
+    auto existing = currencies.find(max_supply.symbol.code().raw());
+
+    //validate
+    check(existing == currencies.end(), "token with symbol already exists" );
+
+    //empalce new currency
+    currencies.emplace(get_self(), [&]( auto& col) {
+       col.issuer = issuer;
+       col.retirable = retirable;
+       col.transferable = transferable;
+       col.consumable = consumable;
+       col.supply = asset(0, max_supply.symbol);
+       col.max_supply = max_supply;
+    });
+}
+
+ACTION drealms::issue(name to, asset quantity, string memo) {
+    //validate
+    check(is_account(to), "to account doesn't exist");
+    check(quantity.symbol.is_valid(), "invalid symbol name");
+    check(memo.size() <= 256, "memo has more than 256 bytes");
+    check(quantity.is_valid(), "invalid quantity");
+    check(quantity.amount > 0, "must issue positive quantity");
+
+    //open currencies table, get currency
+    currencies_table currencies(get_self(), get_self().value);
+    auto& curr = currencies.get(quantity.symbol.code().raw(), "currency not found");
+
+    //authenticate
+    require_auth(curr.issuer);
+
+    //validate
+    check(quantity.symbol == curr.supply.symbol, "symbol precision mismatch");
+    check(quantity.amount <= curr.max_supply.amount - curr.supply.amount, "issuing quantity would exceed max supply");
+
+    //update currency supply
+    currencies.modify(curr, same_payer, [&](auto& col) {
+       col.supply += quantity;
+    });
+
+    //update recipient balance
+    add_balance(to, quantity, curr.issuer);
+
+    //notify recipient account
+    require_recipient(to);
+}
+
+ACTION drealms::retire(asset quantity, string memo) {
+    //validate
+    check(quantity.symbol.is_valid(), "invalid symbol name");
+    check(quantity.is_valid(), "invalid quantity");
+    check(quantity.amount > 0, "must retire positive quantity");
+    check(memo.size() <= 256, "memo has more than 256 bytes");
+
+    //open currencies table, 
+    currencies_table currencies(get_self(), get_self().value);
+    auto& curr = currencies.get(quantity.symbol.code().raw(), "currency not found");
+
+    //authenticate
+    require_auth(curr.issuer);
+
+    //validate
+    check(curr.retirable, "currency is not retirable");
+    check(quantity.symbol == curr.supply.symbol, "symbol precision mismatch");
+    check(quantity <= curr.supply, "cannot retire supply below zero");
+
+    //update currencies table
+    currencies.modify(curr, same_payer, [&](auto& col) {
+       col.supply -= quantity;
+    });
+
+    //remove quantity from issuer
+    sub_balance(curr.issuer, quantity);
+}
+
+ACTION drealms::transfer(name from, name to, asset quantity, string memo) {
+    //validate
+    check(from != to, "cannot transfer to self");
+    check(is_account(to), "recipient account does not exist");
+    check(quantity.is_valid(), "invalid quantity");
+    check(quantity.amount > 0, "must transfer positive quantity");
+    check(memo.size() <= 256, "memo has more than 256 bytes");
+
+    //authenticate
+    require_auth(from);
+
+    //open currencies table
+    currencies_table currencies(get_self(), get_self().value);
+    auto& curr = currencies.get(quantity.symbol.code().raw(), "currency not found");
+
+    //validate
+    check(curr.transferable, "currency is not transferable");
+    check(quantity.symbol == curr.supply.symbol, "symbol precision mismatch");
+
+    //determine ram payer
+    auto payer = has_auth(to) ? to : from;
+
+    sub_balance(from, quantity);
+    add_balance(to, quantity, payer);
+
+    //notify from and to accounts
+    require_recipient(from);
+    require_recipient(to);
+}
+
+ACTION drealms::consume(name owner, asset quantity, string memo) {
+    //authenticate
+    require_auth(owner);
+
+    //open currencies table, get currency
+    currencies_table currencies(get_self(), get_self().value);
+    auto& curr = currencies.get(quantity.symbol.code().raw(), "currency not found");
+
+    //validate
+    check(curr.consumable, "currency is not consumable");
+    check(quantity.symbol == curr.supply.symbol, "symbol precision mismatch");
+    check(quantity <= curr.supply, "cannot consume supply below zero");
+    check(quantity.symbol.is_valid(), "invalid symbol name");
+    check(quantity.is_valid(), "invalid quantity");
+    check(quantity.amount > 0, "must consume positive quantity");
+    check(memo.size() <= 256, "memo has more than 256 bytes");
+
+    //update currencies table
+    currencies.modify(curr, same_payer, [&](auto& col) {
+       col.supply -= quantity;
+    });
+
+    //remove quantity from owner
+    sub_balance(owner, quantity);
+}
+
+ACTION drealms::open(name owner, symbol token_sym, name ram_payer) {
+    //authenticate
+    require_auth(ram_payer);
+
+    //validate
+    check(is_account(owner), "owner account does not exist");
+
+    //open currencies table, get currency
+    currencies_table currencies(get_self(), get_self().value);
+    auto& curr = currencies.get(token_sym.code().raw(), "currency not found");
+
+    //open accounts table, search for account
+    accounts_table accounts(get_self(), owner.value);
+    auto acct = accounts.find(token_sym.code().raw());
+
+    //validate
+    check(curr.supply.symbol == token_sym, "symbol precision mismatch" );
+    check(acct == accounts.end(), "account already exists");
+
+    //emplace new account
+    accounts.emplace(ram_payer, [&](auto& col){
+        col.balance = asset(0, token_sym);
+    });
+}
+
+ACTION drealms::close(name owner, symbol token_sym) {
+    //authenticate
+    require_auth(owner);
+
+    //open accounts table, get account
+    accounts_table accounts(get_self(), owner.value);
+    auto& acct = accounts.get(token_sym.code().raw(), "account not found");
+
+    //validate
+    check(acct.balance.amount == 0, "cannot close account unless balance is zero" );
+
+    //close account
+    accounts.erase(acct);
+}
 
 //========== helper functions ==========
 
@@ -478,37 +683,34 @@ bool drealms::validate_uri_group(name uri_group) {
     return true;
 }
 
+void drealms::add_balance(name to, asset quantity, name ram_payer) {
+    //open accounts table, search for account
+    accounts_table to_accts(get_self(), to.value);
+    auto to_acct = to_accts.find(quantity.symbol.code().raw());
 
-
-//========== migration actions ==========
-
-ACTION drealms::delstats(name token_name) {
-    stats_table stats(get_self(), get_self().value);
-    auto& stat = stats.get(token_name.value, "token stats not found");
-    stats.erase(stat);
+    //if new account pay ram, update balance if not
+    if(to_acct == to_accts.end()) {
+        to_accts.emplace(ram_payer, [&](auto& col){
+            col.balance = quantity;
+        });
+    } else {
+        to_accts.modify(to_acct, same_payer, [&](auto& col) {
+            col.balance += quantity;
+        });
+    }
 }
 
-ACTION drealms::dellic(name token_name, name license_owner) {
-    licenses_table licenses(get_self(), token_name.value);
-    auto& lic = licenses.get(license_owner.value, "license not found");
-    licenses.erase(lic);
-}
+void drealms::sub_balance(name from, asset quantity) {
+    //open accounts table, get account
+    accounts_table from_accts(get_self(), from.value);
+    auto& from_acct = from_accts.get(quantity.symbol.code().raw(), "account not found");
 
-ACTION drealms::delnft(name token_name, uint64_t serial) {
-    nfts_table nfts(get_self(), token_name.value);
-    auto& nft = nfts.get(serial, "nft not found");
-    nfts.erase(nft);
-}
+    //validate
+    check(from_acct.balance.amount >= quantity.amount, "overdrawn balance" );
 
-ACTION drealms::delcurr(symbol sym) {
-    currencies_table currencies(get_self(), get_self().value);
-    auto& curr = currencies.get(sym.code().raw(), "currency not found");
-    currencies.erase(curr);
-}
-
-ACTION drealms::delacct(name owner, symbol sym) {
-    accounts_table accounts(get_self(), owner.value);
-    auto& acct = accounts.get(sym.code().raw(), "account not found");
-    accounts.erase(acct);
+    //subtract quantity from balance
+    from_accts.modify(from_acct, from, [&](auto& col) {
+        col.balance -= quantity;
+    });
 }
                                                                                                             

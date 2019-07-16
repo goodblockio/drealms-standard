@@ -11,15 +11,13 @@
 #include <eosio/asset.hpp>
 #include <eosio/action.hpp>
 #include <eosio/transaction.hpp>
+#include <eosio/singleton.hpp>
 #include <eosio/ignore.hpp>
 
 using namespace std;
 using namespace eosio;
 
-//TODO?: keep require_recipient(to) in the issue() action
 //TODO?: bulk transfernfts action
-//TODO?: rename consume() to activate(), only consumes if token is consumable
-//TODO?: remove burnable feature, easily confused with consumable
 //TODO?: use alternative license erasing? could just expire that way it keeps the table data
 
 //TODO: add revokelic() that revokes an active license (only by issuer)
@@ -27,40 +25,43 @@ using namespace eosio;
 
 CONTRACT drealms : public contract {
 
-    public:
+public:
 
     drealms(name self, name code, datastream<const char*> ds);
 
     ~drealms();
 
     //constants
-    const symbol CORE_SYM = symbol("TLOS", 4);
-    const uint32_t DEFAULT_LICENSE_LENGTH = 31536000; //1 year in seconds
-    const uint32_t MIN_LICENSE_LENGTH = 604800; //1 week in seconds
-    const uint32_t MAX_LICENSE_LENGTH = 62899200; //2 years in seconds
+    // const symbol CORE_SYM = symbol("TLOS", 4);
+    // const uint32_t DEFAULT_LICENSE_LENGTH = 31536000; //1 year in seconds
+    // const uint32_t MIN_LICENSE_LENGTH = 604800; //1 week in seconds
+    // const uint32_t MAX_LICENSE_LENGTH = 62899200; //2 years in seconds
 
+    //======================== admin actions ========================
+
+    //sets config singleton
+    ACTION setconfig(string drealms_version, symbol core_sym, name contract_owner, 
+        uint32_t min_license_length, uint32_t max_license_length);
 
     //======================== nonfungible actions ========================
 
     //creates a new token stat, initially sets licensing to disabled
-    ACTION createnft(name token_name, name issuer, bool burnable, bool transferable, bool consumable, uint64_t max_supply);
+    ACTION createnft(name token_name, name issuer, bool retirable, bool transferable, bool consumable, uint64_t max_supply);
 
     //issues a new NFT token
     ACTION issuenft(name to, name token_name, string memo);
 
+    //retires nft(s) of a single token name, if retirable
+    ACTION retirenft(name token_name, vector<uint64_t> serials, string memo);
+
     //transfers nft(s) of a single token name to recipient account, if transferable
     ACTION transfernft(name from, name to, name token_name, vector<uint64_t> serials, string memo);
-
-    //burns nft of a single token name, if burnable
-    ACTION burnnft(name token_name, vector<uint64_t> serials, string memo);
 
     //consumes an nft, if consumable
     ACTION consumenft(name token_name, uint64_t serial, string memo);
 
     //updates a checksum if found, inserts if not found
     ACTION newchecksum(name token_name, name license_owner, uint64_t serial, string new_checksum);
-
-
 
     //======================== licensing actions ========================
 
@@ -85,27 +86,28 @@ CONTRACT drealms : public contract {
     //deletes a uri
     ACTION deleteuri(name token_name, name license_owner, name uri_group, name uri_name, optional<uint64_t> serial);
 
-
-
     //======================== fungible actions ========================
 
     //creates a fungible token
-    // ACTION create();
+    ACTION create(name issuer, bool retirable, bool transferable, bool consumable, asset max_supply);
 
     //issues a fungible token
-    // ACTION issue();
+    ACTION issue(name to, asset quantity, string memo);
+
+    //retires fungible tokens
+    ACTION retire(asset quantity, string memo);
 
     //transfers fungible tokens
-    // ACTION transfer();
+    ACTION transfer(name from, name to, asset quantity, string memo);
 
-    //burns fungible tokens
-    // ACTION burn();
+    //consumes a fungible token
+    ACTION consume(name owner, asset quantity, string memo);
 
     //opens a zero balance wallet
-    // ACTION open();
+    ACTION open(name owner, symbol token_sym, name ram_payer);
 
     //closes a zero balance wallet
-    // ACTION close();
+    ACTION close(name owner, symbol token_sym);
 
     //withdraws balance
     // ACTION withdraw();
@@ -114,59 +116,37 @@ CONTRACT drealms : public contract {
     // [[eosio::on_notify("eosio.token::transfer")]]
     // void deposit(name from, name to, asset quantity, string memo);
 
-    
-
-    //======================== admin actions ========================
-
-    //upserts config singleton
-    // ACTION setconfig(string drealms_version, symbol core_sym, name contract_owner, 
-        // uint32_t default_license_length, uint32_t min_license_length, uint32_t max_license_length);
-    
-
-
     //========== helper functions ==========
 
     bool validate_license_model(name license_model);
 
     bool validate_uri_group(name uri_group);
 
+    void add_balance(name to, asset quantity, name ram_payer);
 
-    //========== migration actions ==========
-
-    ACTION delstats(name token_name);
-
-    ACTION dellic(name token_name, name license_owner);
-
-    ACTION delnft(name token_name, uint64_t serial);
-
-    ACTION delcurr(symbol sym);
-
-    ACTION delacct(name owner, symbol sym);
-
-
+    void sub_balance(name from, asset quantity);
 
     //======================== tables ========================
 
-    //@scope singleton
-    //@ram 
-    // TABLE config {
-    //     string drealms_version;
-    //     symbol core_sym;
-    //     name contract_owner;
-    //     uint32_t default_license_length;
-    //     uint32_t min_license_length;
-    //     uint32_t max_license_length;
-    // };
-    // typedef singleton<name("configs"), config> config_singleton;
+    //scope: singleton
+    //ram: 
+    TABLE config {
+        string drealms_version;
+        symbol core_sym;
+        name contract_owner;
+        uint32_t default_license_length;
+        uint32_t min_license_length;
+        uint32_t max_license_length;
+    };
+    typedef singleton<name("config"), config> configs_singleton;
 
-
-    //@scope get_self().value
-    //@ram ~507 bytes
+    //scope: get_self().value
+    //ram: ~507 bytes
     TABLE stats {
         name token_name;
         name issuer;
         name license_model;
-        bool burnable;
+        bool retirable;
         bool transferable;
         bool consumable;
         uint64_t supply;
@@ -175,16 +155,14 @@ CONTRACT drealms : public contract {
 
         uint64_t primary_key() const { return token_name.value; }
         EOSLIB_SERIALIZE(stats, 
-            (token_name)(issuer)
-            (license_model)
-            (burnable)(transferable)(consumable)
+            (token_name)(issuer)(license_model)
+            (retirable)(transferable)(consumable)
             (supply)(issued_supply)(max_supply))
     };
     typedef multi_index<name("stats"), stats> stats_table;
-    
 
-    //@scope token_name.value
-    //@ram ~303 bytes
+    //scope: token_name.value
+    //ram: ~303 bytes
     TABLE license {
         name owner;
         time_point_sec expiration;
@@ -197,9 +175,8 @@ CONTRACT drealms : public contract {
     };
     typedef multi_index<name("licenses"), license> licenses_table;
 
-
-    //@scope token_name.value
-    //@ram ~198 bytes
+    //scope: token_name.value
+    //ram: ~198 bytes
     TABLE nonfungible {
         uint64_t serial;
         name owner;
@@ -212,24 +189,23 @@ CONTRACT drealms : public contract {
     };
     typedef multi_index<name("nfts"), nonfungible> nfts_table;
 
-
-    //@scope get_self().value
-    //@ram ~354 bytes
+    //scope: get_self().value
+    //ram: ~354 bytes
     TABLE currency {
         name issuer;
-        bool burnable;
+        bool retirable;
         bool transferable;
+        bool consumable;
         asset supply;
         asset max_supply;
         
         uint64_t primary_key() const { return supply.symbol.code().raw(); }
-        EOSLIB_SERIALIZE(currency, (issuer)(burnable)(transferable)(supply)(max_supply))
+        EOSLIB_SERIALIZE(currency, (issuer)(retirable)(transferable)(consumable)(supply)(max_supply))
     };
     typedef multi_index<name("currencies"), currency> currencies_table;
 
-
-    //@scope owner.value
-    //@ram ~144 bytes
+    //scope: owner.value
+    //ram: ~144 bytes
     TABLE account {
         asset balance;
         
