@@ -17,9 +17,6 @@
 using namespace std;
 using namespace eosio;
 
-//TODO: add revokelic() that revokes an active license (only by issuer)
-//TODO: rename all instances of token_name to token_family - easier to understand diff between tokens and token stats
-
 CONTRACT drealms : public contract {
 
 public:
