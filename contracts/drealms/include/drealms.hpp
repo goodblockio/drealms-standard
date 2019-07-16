@@ -25,12 +25,6 @@ public:
 
     ~drealms();
 
-    //constants
-    // const symbol CORE_SYM = symbol("TLOS", 4);
-    // const uint32_t DEFAULT_LICENSE_LENGTH = 31536000; //1 year in seconds
-    // const uint32_t MIN_LICENSE_LENGTH = 604800; //1 week in seconds
-    // const uint32_t MAX_LICENSE_LENGTH = 62899200; //2 years in seconds
-
     //======================== admin actions ========================
 
     //sets config singleton
