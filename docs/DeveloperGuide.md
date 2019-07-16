@@ -12,83 +12,97 @@ To begin, navigate to the base project folder: `drealms-standard/`
 
     chmod +x deploy.sh
 
-#### Build
+### Build
 
     ./build.sh drealms
 
-
-#### Deploy
+### Deploy
 
     ./deploy.sh drealms { local | test | production }
 
+## Contract Setup
 
-## NFT Interface
+In order to fully utilize the features dRealms provides, a dRealms contract config must first be initialized. This is done by calling the `setconfig()` action.
 
-The following is a description of the dRealms NFT interface:
+### ACTION `setconfig()`
 
+- `drealms_version` is a string representation of the dRealms version used by this contract. dRealms follows the SemVer 2.0.0 versioning pattern so its best to follow that where possible.
 
+- `core_sym` is the symbol of the core system token of the blockchain this contract is deployed to.
 
-### `createnft()`
+- `contract_owner` is the account name that owns the whole contract. Only certain actions require this authority.
 
-Creates a new NFT Family
+- `min_license_length` is the minimum length of time, in seconds, that a license may be created for across the whole contract.
 
-* `token_name` is the name of the new token family.
+- `max_license_length` is the maximum length of time, in seconds, that a license may be created for across the whole contract.
 
-* `issuer` is the account allowed to issue (mint) new NFTs.
+    ```
+    cleos push action account setconfig '["v1.0.0", "4,TLOS", "youraccount", 604800, 62899200]' -p account
+    ```
 
-* `burnable` allows tokens to be burnt by the issuer.
+## Nonfungible Actions
 
-* `transferable` allows tokens to be transferred.
+dRealms nonfungible actions that are used throughout the lifecycle of a nonfungible token. To get started creating a new NFT, simply call the `createnft()` action.
 
-* `consumable` allows the token to be consumed by the owner. Often used to trigger consumption of one-use tokens.
+### ACTION `createnft()`
 
-* `max_supply` is the maximum number of NFTs allowed to be created.
+- `token_name` is the name of the new token family.
 
+- `issuer` is the account allowed to issue or retire NFTs.
 
+- `retirable` allows tokens to be retired by the issuer. The issuer must own the tokens to be retired.
 
-### `issuenft()`
+- `transferable` allows tokens to be transferred. Note that by virtue of being transferable tokens are able to be traded on an open market.
 
-Issues a new NFT
+- `consumable` allows the token to be consumed by the token holder. Often used to trigger effects of one-use tokens in a game or app. Additional information can be supplied in the memo field of the consume() action for customizable token consumption effects.
 
-* `to` is the account to receive the issued NFT.
+- `max_supply` is the maximum number of NFTs from this token family allowed to exist at once.
 
-* `token_name` is the token family of the NFT to issue.
+    ```
+    cleos push action account createnft '["dragons", "testaccounta", true, true, false, 100]' -p testaccounta
+    ```
 
-* `memo` is a memo for extra data.
+### ACTION `issuenft()`
 
+- `to` is the account to receive the newly issued NFT.
 
+- `token_name` is the NFT token family from which to issue.
 
-### `transfernft()`
+- `memo` is a memo for extra data.
 
-Transfers an NFT
+    ```
+    cleos push action account issuenft '["testaccountb", "dragons", "test issuenft memo"]' -p testaccounta
+    ```
 
-* `from` is the name of the account sending the NFT.
+### ACTION `retirenft()`
 
-* `to` is the account receiving the NFT.
+- `token_name` is the token family of the NFT(s) to retire.
 
-* `token_name` is the token family of the NFT(s) to transfer.
+- `serials` is a list of NFT serial numbers to retire.
 
-* `serials` is a list of NFT serial numbers to transfer.
+- `memo` is a memo for extra data.
 
-* `memo` is a memo for extra data.
+    ```
+    cleos push action youraccount transfernft '["testaccounta", "testaccountb", "dragons", [0, 1], "test transfernft memo"]' -p account
+    ```
 
+### ACTION `transfernft()`
 
+- `from` is the name of the account sending the NFT.
 
-### `burnnft()`
+- `to` is the account receiving the NFT.
 
-Burns NFT(s)
+- `token_name` is the token family of the NFT(s) to transfer.
 
-* `token_name` is the token family of the NFT(s) to burn.
+- `serials` is a list of NFT serial numbers to transfer.
 
-* `serials` is a list of NFT serial numbers to burn.
+- `memo` is a memo for extra data.
 
-* `memo` is a memo for extra data.
+    ```
+    cleos push action account transfernft '["testaccounta", "testaccountb", "dragons", [0, 1], "test transfernft memo"]' -p testaccounta
+    ```
 
-
-
-### `consumenft()`
-
-Consumes an NFT
+### ACTION `consumenft()`
 
 * `token_name` is the token family of the NFT to consume.
 
@@ -96,113 +110,231 @@ Consumes an NFT
 
 * `memo` is a memo for extra data.
 
+    ```
+    cleos push action account consumenft '["dragons", 1, "test consumenft memo"]' -p testaccounta
+    ```
 
-
-### `newchecksum()`
-
-Inserts or overwrites a checksum on an NFT
+### ACTION `newchecksum()`
 
 * `token_name` is the token family of the NFT to update.
 
-* `licesne_owner` is the name of the license owner.
+* `license_owner` is the name of the NFT license owner.
 
 * `serial` is the serial number of the NFT to update.
 
 * `new_checksum` is the new checksum to save to the NFT.
 
+    ```
+    cleos push action account newchecksum '["dragons", "testaccounta", 1, "rga59c6"]' -p testaccounta
+    ```
 
+## License Actions
 
-## License Interface
+The dRealms License interface allows (or disallows) third parties to obtain, modify, and remove licenses from NFT families. After obtaining a license, this interface allows such third parties to save a custom representation of an NFT for use in their game or application.
 
-The following is a description of the dRealms License interface:
+### ACTION `setlicmodel()`
 
+This action will update the license model set on the token family. Currently, the supported options are: `disabled`, `open`, and `permissioned`. 
 
+Disabled is the default set by all new token families and disallows any additional licenses on the token (other than the initial one created along with the token family). 
 
-### `setlicmodel()`
+Open allows any other user to add a new license, provided the new license expiration falls between the min_license_length and max_license_length defined by calling set_config(). This setting is great for tokens that intend to have large mod communities, as it allows new token representations to be created at will.
 
-Sets a new license model on a token family.
+Permissioned licensing means only the token issuer may create new licenses, but they may do so on behalf of another party (perhaps after negotiating a licensing deal).
 
-* `token_name` is the token family to accept the new license model.
+- `token_name` is the token family to update with the new license model.
 
-* `new_license_model` is the new license model being set.
+- `new_license_model` is the new license model being set.
 
+    ```
+    cleos push action account setlicmodel '["dragons", "permissioned"]' -p testaccounta
+    ```
 
+### ACTION `newlicense()`
 
-### `newlicense()`
+- `token_name` is the token family receiving the new license.
 
-Creates or renews a license.
+- `owner` is the owner of the new license.
 
-* `token_name` is the token family receiving the new license.
+- `expiration` is the expiration time of the new license.
 
-* `owner` is the owner of the new license.
+    ```
+    cleos push action account newlicense '["dragons", "testaccountb", "2019-05-22T21:39:03"]' -p testaccounta
+    ```
 
-* `expiration` is the expiration time of the license.
+### ACTION `eraselicense()`
 
+- `token_name` is the token family from which to erase the license.
 
+- `license_owner` is the owner of the license to erase.
 
-### `eraselicense()`
+    ```
+    cleos push action account eraselicense '["dragons", "testaccountb"]' -p testaccountb
+    ```
 
-Erases a license.
+### ACTION `setalgo()`
 
-* `token_name` is the token family to erase the license from.
+- `token_name` is the token family of the license.
 
-* `license_owner` is the owner of the license to erase.
+- `license_owner` is the name of the license owner.
 
+- `new_checksum_algo` is the new checksum algorithm. e.g. "sha256", "md5", etc.
 
+    ```
+    cleos push action account setalgo '["dragons", "testaccountb", "sha256"]' -p testaccountb
+    ```
 
-### `setalgo()`
+### ACTION `setati()`
 
-Sets a new checksum algorithm on a license.
+- `token_name` is the token family of the license.
 
-* `token_name` is the token family of the license.
+- `license_owner` is the name of the license owner.
 
-* `license_owner` is the name of the license owner.
+- `new_ati_uri` is the new endpoint storing the license ATI.
 
-* `new_checksum_algo` is the new checksum algorithm. e.g. "sha256", "md5", etc.
+    ```
+    cleos push action account setati '["dragons", "testaccountb", "http://dragons.io/atis/dragons"]' -p testaccountb
+    ```
 
+### ACTION `newuri()`
 
+The newuri() action will create a new uri within the given uri_group and assign it a key equal to uri_name. Currently, the three uri groups are: `full`, `base`, and `relative`. 
 
-### `setati()`
+A full uri is already complete - in other words, it doesn't need to be combined with another uri to make a complete endpoint.
 
-Sets a new ATI on a license.
+A base uri is the first part of a complete uri. Concatenate a base uri with the respective relative uri to form a complete endpoint.
 
-* `token_name` is the token family of the license.
+A relative uri is the second part of a base uri. When combined with a base uri from the respective license it forms a complete endpoint from which all metadata about that version of the NFT is returned. If adding a new relative uri, you must supply the serial number of the NFT as well.
 
-* `license_owner` is the name of the license owner.
+- `token_name` is the token family to upsert the uri for.
 
-* `new_ati_uri` is the new endpoint storing the license ATI.
+- `license_owner` is the owner of the license being updated.
 
+- `uri_group` is the group of the new uri.
 
+- `uri_name` is the name of the new uri.
 
-### `newuri()`
+- `new_uri` is the uri as a string.
 
-* `token_name` is the token family to upsert the uri for.
+- `optional: serial` if updating a relative uri, the serial number of the NFT to update.
 
-* `license_owner` is the owner of the license being updated.
+    ```
+    cleos push action account newuri '["dragons", "testaccountb", "full", "website", "http://dragons.io", null]' -p testaccountb
+    ```
 
-* `uri_group` is the group of the new uri ("full", "base", or "relative").
+    ```
+    cleos push action account newuri '["dragons", "testaccountb", "relative", "testaccountb", "?serial=1", 1]' -p testaccountb
+    ```
 
-* `uri_name` is the name of the new uri.
+### ACTION `deleteuri()`
 
-* `new_uri` is the uri as a string.
+- `token_name` is the token family to delete the uri from.
 
-* `optinal: serial` if updating a relative uri, the serial number of the NFT to update.
+- `license_owner` is the license owner of the uri being deleted.
 
+- `uri_group` is the group of the new uri ("full", "base", or "relative").
 
+- `uri_name` is the name of the uri to delete.
 
-### `deleteuri()`
+- `optinal: serial` if deleteing a relative uri, the serial number of the NFT to delete from.
 
-* `token_name` is the token family to delete the uri from.
+    ```
+    cleos push action account deleteuri '["dragons", "testaccountb", "full", "website", null]' -p testaccountb
+    ```
 
-* `license_owner` is the license owner of the uri being deleted.
+    ```
+    cleos push action account deleteuri '["dragons", "testaccountb", "relative", "testaccountb", 1]' -p testaccountb
+    ```
 
-* `uri_group` is the group of the new uri ("full", "base", or "relative").
+## Fungible Actions
 
-* `uri_name` is the name of the uri to delete.
+The dRealms standard supports fungible tokens and allows for more granular customization when compared to the typical eosio.token format.
 
-* `optinal: serial` if deleteing a relative uri, the serial number of the NFT to delete from.
+### ACTION `create()`
 
+- `issuer` 
 
+- `retirable`
+
+- `transferable`
+
+- `consumable`
+
+- `max_supply`
+
+    ```
+    cleos push action account create '["testaccounta", true, false, true, "1000.00 TEST"]' -p testaccounta
+    ```
+
+### ACTION `issue()`
+
+- `to`
+
+- `quantity`
+
+- `memo`
+
+    ```
+    cleos push action account issue '["tetaccounta", "50.00 TEST", "test issue"]' -p testaccounta
+    ```
+
+### ACTION `retire()`
+
+- `quantity`
+
+- `memo`
+
+    ```
+    cleos push action account retire '["5.00 TEST", "test retire"]' -p testaccountb
+    ```
+
+### ACTION `transfer()`
+
+- `from`
+
+- `to`
+
+- `quantity`
+
+- `memo`
+
+    ```
+    cleos push action account transfer '["testaccounta", "testaccountb", "25.00 TEST", "test transfer"]' -p testaccounta
+    ```
+
+### ACTION `consume()`
+
+- `owner`
+
+- `quantity`
+
+- `memo`
+
+    ```
+    cleos push action account consume '["testaccountb", "1.00 TEST", "test consume"]' -p testaccountb
+    ```
+
+### ACTION `open()`
+
+- `owner`
+
+- `token_sym`
+
+- `ram_payer`
+
+    ```
+    cleos push action account open '["testaccountb", "2,TEST", "testaccountb"]' -p testaccountb
+    ```
+
+### ACTION `close()`
+
+- `owner`
+
+- `token_sym`
+
+    ```
+    cleos push action account close '["testaccountb", "2,TEST"]' -p testaccountb
+    ```
 
 ## Application Token Interface (ATI)
 

@@ -41,7 +41,7 @@ public:
 
     //sets config singleton
     ACTION setconfig(string drealms_version, symbol core_sym, name contract_owner, 
-        uint32_t default_license_length, uint32_t min_license_length, uint32_t max_license_length);
+        uint32_t min_license_length, uint32_t max_license_length);
 
     //======================== nonfungible actions ========================
 

@@ -7,7 +7,7 @@ drealms::~drealms() {}
 //======================== admin actions ========================
 
 ACTION drealms::setconfig(string drealms_version, symbol core_sym, name contract_owner, 
-    uint32_t default_license_length, uint32_t min_license_length, uint32_t max_license_length) {
+    uint32_t min_license_length, uint32_t max_license_length) {
     
     //authenticate
     require_auth(get_self());
@@ -20,7 +20,6 @@ ACTION drealms::setconfig(string drealms_version, symbol core_sym, name contract
         drealms_version, //drealms_version
         core_sym, //core_sym
         contract_owner, //contract_owner
-        default_license_length, //default_license_length
         min_license_length, //min_license_length
         max_license_length, //max_license_length
     };
@@ -253,7 +252,7 @@ ACTION drealms::newlicense(name token_name, name owner, time_point_sec expiratio
 
     //intialize defaults
     name ram_payer = owner;
-    time_point_sec new_expiration = time_point_sec(current_time_point()) + current_configs.default_license_length;
+    time_point_sec new_expiration;
     time_point_sec min_expiration = time_point_sec(current_time_point()) + current_configs.min_license_length;
     time_point_sec max_expiration = time_point_sec(current_time_point()) + current_configs.max_license_length;
 
