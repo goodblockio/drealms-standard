@@ -1,4 +1,4 @@
-// dRealms is a lightweight cross-game NFT standard for EOSIO software.
+// dRealms is a cross-game token standard for EOSIO software.
 // 
 // @author Craig Branscom
 // @contract drealms
@@ -16,9 +16,6 @@
 
 using namespace std;
 using namespace eosio;
-
-//TODO?: bulk transfernfts action
-//TODO?: use alternative license erasing? could just expire that way it keeps the table data
 
 //TODO: add revokelic() that revokes an active license (only by issuer)
 //TODO: rename all instances of token_name to token_family - easier to understand diff between tokens and token stats
@@ -129,7 +126,7 @@ public:
     //======================== tables ========================
 
     //scope: singleton
-    //ram: 
+    //ram: ~40 bytes
     TABLE config {
         string drealms_version;
         symbol core_sym;

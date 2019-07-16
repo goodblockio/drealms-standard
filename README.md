@@ -1,12 +1,16 @@
 # dRealms Token Standard
 
-The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO software.
+dRealms is a cross-game token standard for EOSIO software.
 
 ## Features
 
 * `Robust Token Ownership and Authorship`
 
     dRealms offers the ideal ownership/authorship model for token economics. The current tokenomics paradigm pushes for 'complete ownership', whether that design works for every use case or not. dRealms offers a suite of tokenomics designs and developers can choose which one best suits their unique business model.
+
+* `Nonfungible and Fungible Tokens`
+
+    The dRealms standard offers highly customizable fungible and nonfungible tokens. Token Families can be retirable, transferable, or consumable, or any combination of the three.
 
 * `Lightweight and Scalable Design`
 
@@ -30,13 +34,12 @@ The dRealms Token Standard is a lightweight cross-game NFT standard for EOSIO so
 
 ## Roadmap
 
-**dRealms v1.0.0:**
-
-1. Revise license flow and action signatures
-2. Implement DEX features
-3. Purchasable license model - additional license models
-
 **dRealms v1.1.0**
 
-1. ATI refinement
-2. Unity Plugin
+1. Refined ATI Documentation
+2. Unity Plugin MVP
+3. Additional License Models
+
+**dRealms v1.2.0**
+
+Coming Soon...
