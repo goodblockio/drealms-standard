@@ -1,6 +1,6 @@
 # dRealms Developer Guide
 
-dRealms is a lightweight cross-game NFT standard for EOSIO software.
+dRealms is a lightweight cross-game standard for creating tokenized digital assets for EOSIO blockchains.
 
 ## Project Setup
 
@@ -397,4 +397,6 @@ Since GoodBlock Games created the original game asset they control the licensing
 
 Bethesda Game Studios' new game is a Sci-Fi FPS style shoooter (one where a 2D fantasy dragon would almost certainly be out of place), so during license negotiation Bethesda works to ensure GBG approves of the representation their dragon tokens will have within BGS's game - in this case, fantasy inspired laser rifles (EX: a water dragon in Drakos Keep becomes a specialized laser rifle with a dragonscale skin, shoots blue lasers, and has increased weapon handling). The rigidity to which asset creators must adhere to the original token design is decided during license negotioation and is outside the scope of the token contract's responsibility.
 
-Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use dRealms assets this way, it is also important to understand that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game could break immersion and game balance.
+Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use dRealms assets this way, it is also important to understand that the many games are hand-crafted experiences where simply "dropping in" would be inappropriate. 
+
+The most common usage of interoperable cross-game digital assets will be games designed with heterogenious dRealms game assets in mind.
