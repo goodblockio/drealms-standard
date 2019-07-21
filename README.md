@@ -1,6 +1,6 @@
-# dRealms Token Standard
+# dRealms™ Token Standard
 
-dRealms is a cross-game standard for creating tokenized game assets for EOSIO blockchains.
+dRealms™ is a cross-game standard for creating tokenized game assets for EOSIO blockchains.
 
 ## Features
 
