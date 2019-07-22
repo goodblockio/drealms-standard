@@ -252,15 +252,17 @@ The dRealms standard supports fungible tokens and allows for more granular custo
 
 ### ACTION `create()`
 
-- `issuer` 
+Creates a new fungible token with the given settings.
 
-- `retirable`
+- `issuer` is the name of the account allowed to issue or retire tokens.
 
-- `transferable`
+- `retirable` allows tokens to be retired from circulation by the currency issuer, if true.
 
-- `consumable`
+- `transferable` allows tokens to be transferred by their owners, if true.
 
-- `max_supply`
+- `consumable` allows tokens to be consumed by their owners, if true.
+
+- `max_supply` is the maximum number of tokens allowed in circulation at any given time.
 
     ```
     cleos push action account create '["testaccounta", true, false, true, "1000.00 TEST"]' -p testaccounta
@@ -268,11 +270,15 @@ The dRealms standard supports fungible tokens and allows for more granular custo
 
 ### ACTION `issue()`
 
-- `to`
+Issues new tokens into circulation. Only executable by the currency issuer.
 
-- `quantity`
+- `to` is the account receiving the newly issued tokens. If the account doesn't have an open wallet to hold the tokens, a wallet will be created for the recipient with the ram paid by the issuer.
 
-- `memo`
+- `quantity` is the quantity of tokens being issued.
+
+- `memo` is a memo field for describing the token issuance, or for providing extra data for notifications.
+
+Notifies: `to`
 
     ```
     cleos push action account issue '["tetaccounta", "50.00 TEST", "test issue"]' -p testaccounta
@@ -280,9 +286,11 @@ The dRealms standard supports fungible tokens and allows for more granular custo
 
 ### ACTION `retire()`
 
-- `quantity`
+Retires a quantity of tokens from circulation. Only executable if the currency allows token retiring, and if the currency issuer owns the tokens.
 
-- `memo`
+- `quantity` is the quantiy of tokens being retired.
+
+- `memo` is a memo field for describing the token retiring, or for providing extra data for notifications.
 
     ```
     cleos push action account retire '["5.00 TEST", "test retire"]' -p testaccountb
@@ -290,13 +298,17 @@ The dRealms standard supports fungible tokens and allows for more granular custo
 
 ### ACTION `transfer()`
 
-- `from`
+Transfers a quantity of tokens from a sender to a recipient. Only executable if the currency allows token transfers.
 
-- `to`
+- `from` is the account sending the tokens.
 
-- `quantity`
+- `to` is the account receiving the tokens.
 
-- `memo`
+- `quantity` is the quantity of tokens to transfer.
+
+- `memo` is a memo field for describing the token transfer, or for providing extra data for notifications.
+
+Notifies: `from`, `to`
 
     ```
     cleos push action account transfer '["testaccounta", "testaccountb", "25.00 TEST", "test transfer"]' -p testaccounta
@@ -304,11 +316,15 @@ The dRealms standard supports fungible tokens and allows for more granular custo
 
 ### ACTION `consume()`
 
-- `owner`
+Consumes a quantity of tokens from the owner's balance. Only executable if the currency allows token consumption.
 
-- `quantity`
+- `owner` is the owner of the currency to consume.
 
-- `memo`
+- `quantity` is the quantity of tokens to consume.
+
+- `memo` is a memo field for describing the token consumption, or providing extra data for notifications.
+
+Notifies: `owner`
 
     ```
     cleos push action account consume '["testaccountb", "1.00 TEST", "test consume"]' -p testaccountb
@@ -316,11 +332,13 @@ The dRealms standard supports fungible tokens and allows for more granular custo
 
 ### ACTION `open()`
 
-- `owner`
+Opens a new currency account. Requires the currency to have been created before opening accounts is allowed.
 
-- `token_sym`
+- `owner` is the owner of the new account being opened.
 
-- `ram_payer`
+- `currency_symbol` is the token symbol of the new account being opened.
+
+- `ram_payer` is the account paying for the storage of the new account. The ram payer must also sign the transaction to authorize the ram billing (if different from the new account owner).
 
     ```
     cleos push action account open '["testaccountb", "2,TEST", "testaccountb"]' -p testaccountb
@@ -328,9 +346,11 @@ The dRealms standard supports fungible tokens and allows for more granular custo
 
 ### ACTION `close()`
 
-- `owner`
+Closes a fungible token account. Requires the currency account to be empty before closing.
 
-- `token_sym`
+- `owner` is the owner of the account being closed.
+
+- `currency_symbol` is the token symbol of the account being closed.
 
     ```
     cleos push action account close '["testaccountb", "2,TEST"]' -p testaccountb
@@ -338,9 +358,9 @@ The dRealms standard supports fungible tokens and allows for more granular custo
 
 ## Application Token Interface (ATI)
 
-dRealms's ATI feature makes developing NFT's as familiar as making regular game assets. Any active license can supply a custom ATI for a token. 
+dRealms's ATI feature makes developing NFT's as easy as making regular game assets. Any active license can supply a custom ATI for a token and therefore be imported into a compatible game.
 
-An ATI defines data types and formatting so the dRealms Unity Plugin knows what to expect when querying for NFT data on-chain. This allows for "just in time" creation of NFT assets in-game, since the game application already knows how to build the frame of the asset - it just waits for data to return from the chain to render the complete asset.
+An ATI defines data types and formatting so the dRealms Unity Plugin knows what to expect when querying for NFT data on-chain. This allows for "just in time" creation of NFT assets, since the game application already knows how to build the frame of the asset from the ATI - it just waits for a response from the chain to render the asset's details.
 
 #### ATI Example:
 
@@ -356,6 +376,9 @@ An ATI defines data types and formatting so the dRealms Unity Plugin knows what 
         "contract": "drakoskeepio",
         "owner": "goodblocktls",
         "token_family": "dragons"
+    },
+    "realm": {
+        "name": "fantasy"
     },
     "interface": {
         "nft_id": "uint64",
@@ -384,7 +407,6 @@ An ATI defines data types and formatting so the dRealms Unity Plugin knows what 
         ]
         ...
     }
-    ...
 }
 ```
 
@@ -393,8 +415,8 @@ An ATI defines data types and formatting so the dRealms Unity Plugin knows what 
 
 **Scenario**: GoodBlock Games has launched a new title where in-game dragons are tokenized on the Telos Blockchain, and Bethesda Game Studios wants to build a game where those same dragon tokens are importable and usable in their game. 
 
-Since GoodBlock Games created the original game asset they control the licensing rights to their dragon token, and therefore may allow or disallow Bethesda Game Studios to get a new license slot for the dragon tokens. When GoodBlock Games created their dragon tokens they set the licensing model to **Permissioned Licensing**, meaning new license slots are only obtainable through on-chain approval by GoodBlock Games. GoodBlock Games and Bethesda Game Studios negotiate a deal, and GoodBlock Games agrees to give Bethesda Game Studios a 1-year license slot for the dragon tokens. The deal is accepted by both parties and the license slot is opened on-chain.
+When GoodBlock Games created their dragon tokens they set the licensing model to **Permissioned Licensing**, meaning new license slots are only obtainable through prior approval by GoodBlock Games. GoodBlock Games and Bethesda Game Studios negotiate a deal, and GoodBlock Games agrees to give Bethesda Game Studios a 1-year license slot for the dragon tokens. The deal is accepted by both parties and the license slot is opened on-chain.
 
-Bethesda Game Studios' new game is a Sci-Fi FPS style shoooter (one where a 2D fantasy dragon would almost certainly be out of place), so during license negotiation Bethesda works to ensure GBG approves of the representation their dragon tokens will have within BGS's game - in this case, fantasy inspired laser rifles (EX: a water dragon in Drakos Keep becomes a specialized laser rifle with a dragonscale skin, shoots blue lasers, and has increased weapon handling). The rigidity to which asset creators must adhere to the original token design is decided during license negotioation and is outside the scope of the token contract's responsibility.
+Bethesda Game Studios' new game is a Sci-Fi FPS style shoooter (one where a 2D fantasy dragon would almost certainly be out of place), so during license negotiation Bethesda works to ensure GBG approves of the representation their dragon tokens will have within BGS's game - in this case, fantasy inspired laser rifles (EX: a water dragon in Drakos Keep becomes a specialized laser rifle with a dragonscale skin, shoots blue lasers, and has increased weapon handling). The rigidity to which asset creators must adhere to the original token design is decided during license negotiation and is outside the scope of the token contract's responsibility.
 
-Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use dRealms assets this way, it is also important to understand that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game could break immersion and game balance.
+Note that having token representation vary by game is intentional, as this decouples game assets from the original game and opens them up for creative use in other games. While some games are designed to be a giant sandbox, and there will no doubt be many games that use dRealms assets this way, it is also important to note that the majority of games are very hand-crafted experiences where simply "dropping in" an asset developed for another game would break immersion or game balance.
