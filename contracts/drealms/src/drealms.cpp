@@ -603,7 +603,7 @@ ACTION drealms::consume(name owner, asset quantity, string memo) {
     sub_balance(owner, quantity);
 }
 
-ACTION drealms::open(name owner, symbol token_sym, name ram_payer) {
+ACTION drealms::open(name owner, symbol currency_symbol, name ram_payer) {
     //authenticate
     require_auth(ram_payer);
 
@@ -612,29 +612,29 @@ ACTION drealms::open(name owner, symbol token_sym, name ram_payer) {
 
     //open currencies table, get currency
     currencies_table currencies(get_self(), get_self().value);
-    auto& curr = currencies.get(token_sym.code().raw(), "currency not found");
+    auto& curr = currencies.get(currency_symbol.code().raw(), "open: currency not found");
 
     //open accounts table, search for account
     accounts_table accounts(get_self(), owner.value);
-    auto acct = accounts.find(token_sym.code().raw());
+    auto acct = accounts.find(currency_symbol.code().raw());
 
     //validate
-    check(curr.supply.symbol == token_sym, "symbol precision mismatch" );
-    check(acct == accounts.end(), "account already exists");
+    check(curr.supply.symbol == currency_symbol, "open: symbol precision mismatch" );
+    check(acct == accounts.end(), "open: account already exists");
 
     //emplace new account
     accounts.emplace(ram_payer, [&](auto& col){
-        col.balance = asset(0, token_sym);
+        col.balance = asset(0, currency_symbol);
     });
 }
 
-ACTION drealms::close(name owner, symbol token_sym) {
+ACTION drealms::close(name owner, symbol currency_symbol) {
     //authenticate
     require_auth(owner);
 
     //open accounts table, get account
     accounts_table accounts(get_self(), owner.value);
-    auto& acct = accounts.get(token_sym.code().raw(), "account not found");
+    auto& acct = accounts.get(currency_symbol.code().raw(), "close: account not found");
 
     //validate
     check(acct.balance.amount == 0, "cannot close account unless balance is zero" );
@@ -699,10 +699,10 @@ void drealms::add_balance(name to, asset quantity, name ram_payer) {
 void drealms::sub_balance(name from, asset quantity) {
     //open accounts table, get account
     accounts_table from_accts(get_self(), from.value);
-    auto& from_acct = from_accts.get(quantity.symbol.code().raw(), "account not found");
+    auto& from_acct = from_accts.get(quantity.symbol.code().raw(), "sub_balance: account not found");
 
     //validate
-    check(from_acct.balance.amount >= quantity.amount, "overdrawn balance" );
+    check(from_acct.balance.amount >= quantity.amount, "sub_balance: overdrawn balance" );
 
     //subtract quantity from balance
     from_accts.modify(from_acct, from, [&](auto& col) {

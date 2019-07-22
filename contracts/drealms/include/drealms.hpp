@@ -92,10 +92,10 @@ public:
     ACTION consume(name owner, asset quantity, string memo);
 
     //opens a zero balance wallet
-    ACTION open(name owner, symbol token_sym, name ram_payer);
+    ACTION open(name owner, symbol currency_symbol, name ram_payer);
 
     //closes a zero balance wallet
-    ACTION close(name owner, symbol token_sym);
+    ACTION close(name owner, symbol currency_symbol);
 
     //withdraws balance
     // ACTION withdraw();
