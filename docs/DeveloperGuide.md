@@ -87,13 +87,14 @@ Creates a new NFT family with the given settings.
 
 Issues a new NFT to the recipient account. Only executable by the token issuer.
 
+Notifies: `to`
+
 - `to` is the account to receive the newly issued NFT.
 
 - `token_family` is the NFT token family from which to issue.
 
 - `memo` is a memo describing the issuance, or for providing extra data for notifications.
 
-Notifies: `to`
 
     ```
     cleos push action account issuenft '["testaccountb", "dragons", "test issuenft memo"]' -p testaccounta
@@ -117,6 +118,8 @@ Retires one or more NFTs from a token family. Only executable by the token issue
 
 Transfers one or more NFTs from a token family to a recipient. The to account will own all the transferred items if successful.
 
+Notifies: `from`, `to`
+
 - `from` is the name of the account sending the NFT.
 
 - `to` is the account receiving the NFT.
@@ -126,8 +129,6 @@ Transfers one or more NFTs from a token family to a recipient. The to account wi
 - `serials` is a list of NFT serial numbers to transfer.
 
 - `memo` is a memo describing the transfer, or for providing extra data for notifications.
-
-Notifies: `from`, `to`
 
     ```
     cleos push action account transfernft '["testaccounta", "testaccountb", "dragons", [0, 1], "test transfernft memo"]' -p testaccounta
@@ -321,13 +322,13 @@ Creates a new fungible token with the given settings.
 
 Issues new tokens into circulation. Only executable by the currency issuer.
 
+Notifies: `to`
+
 - `to` is the account receiving the newly issued tokens. If the account doesn't have an open wallet to hold the tokens, a wallet will be created for the recipient with the ram paid by the issuer.
 
 - `quantity` is the quantity of tokens being issued.
 
 - `memo` is a memo field for describing the token issuance, or for providing extra data for notifications.
-
-Notifies: `to`
 
     ```
     cleos push action account issue '["tetaccounta", "50.00 TEST", "test issue"]' -p testaccounta
@@ -349,6 +350,8 @@ Retires a quantity of tokens from circulation. Only executable if the currency a
 
 Transfers a quantity of tokens from a sender to a recipient. Only executable if the currency allows token transfers.
 
+Notifies: `from`, `to`
+
 - `from` is the account sending the tokens.
 
 - `to` is the account receiving the tokens.
@@ -356,8 +359,6 @@ Transfers a quantity of tokens from a sender to a recipient. Only executable if 
 - `quantity` is the quantity of tokens to transfer.
 
 - `memo` is a memo field for describing the token transfer, or for providing extra data for notifications.
-
-Notifies: `from`, `to`
 
     ```
     cleos push action account transfer '["testaccounta", "testaccountb", "25.00 TEST", "test transfer"]' -p testaccounta
@@ -367,13 +368,13 @@ Notifies: `from`, `to`
 
 Consumes a quantity of tokens from the owner's balance. Only executable if the currency allows token consumption.
 
+Notifies: `owner`
+
 - `owner` is the owner of the currency to consume.
 
 - `quantity` is the quantity of tokens to consume.
 
 - `memo` is a memo field for describing the token consumption, or providing extra data for notifications.
-
-Notifies: `owner`
 
     ```
     cleos push action account consume '["testaccountb", "1.00 TEST", "test consume"]' -p testaccountb
