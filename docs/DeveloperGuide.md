@@ -2,6 +2,23 @@
 
 dRealms is a lightweight cross-game NFT standard for EOSIO software.
 
+## Prerequisites
+
+Installed:
+
+* eosio.cdt >= v1.6.2
+
+* eosio >= v1.8 (nodeos, keosd, cleos)
+
+Recommended Resources:
+
+* 55 TLOS staked to CPU
+
+* 5 TLOS staked to NET
+
+* 1 MB of RAM (~90 TLOS)
+
+
 ## Project Setup
 
 To begin, navigate to the base project folder: `drealms-standard/`
@@ -26,6 +43,8 @@ In order to fully utilize the features dRealms provides, a dRealms contract conf
 
 ### ACTION `setconfig()`
 
+Sets the data in the contract's config singleton. It's good practice to always set the config so other players or developers can know some basic information about your dRealms contract.
+
 - `drealms_version` is a string representation of the dRealms version used by this contract. dRealms follows the SemVer 2.0.0 versioning pattern so its best to follow that where possible.
 
 - `core_sym` is the symbol of the core system token of the blockchain this contract is deployed to.
@@ -42,11 +61,13 @@ In order to fully utilize the features dRealms provides, a dRealms contract conf
 
 ## Nonfungible Actions
 
-dRealms nonfungible actions that are used throughout the lifecycle of a nonfungible token. To get started creating a new NFT, simply call the `createnft()` action.
+dRealms nonfungible actions that are used throughout the lifecycle of a nonfungible token. To get started creating a new NFT simply call the `createnft()` action to make a new token family, and then the `issuenft()` action to start issuing them to recipients.
 
 ### ACTION `createnft()`
 
-- `token_name` is the name of the new token family.
+Creates a new NFT family with the given settings.
+
+- `token_family` is the name of the new token family.
 
 - `issuer` is the account allowed to issue or retire NFTs.
 
@@ -64,11 +85,15 @@ dRealms nonfungible actions that are used throughout the lifecycle of a nonfungi
 
 ### ACTION `issuenft()`
 
+Issues a new NFT to the recipient account. Only executable by the token issuer.
+
 - `to` is the account to receive the newly issued NFT.
 
-- `token_name` is the NFT token family from which to issue.
+- `token_family` is the NFT token family from which to issue.
 
-- `memo` is a memo for extra data.
+- `memo` is a memo describing the issuance, or for providing extra data for notifications.
+
+Notifies: `to`
 
     ```
     cleos push action account issuenft '["testaccountb", "dragons", "test issuenft memo"]' -p testaccounta
@@ -76,11 +101,13 @@ dRealms nonfungible actions that are used throughout the lifecycle of a nonfungi
 
 ### ACTION `retirenft()`
 
-- `token_name` is the token family of the NFT(s) to retire.
+Retires one or more NFTs from a token family. Only executable by the token issuer, and the issuer must own all tokens being retired.
+
+- `token_family` is the token family of the NFT(s) to retire.
 
 - `serials` is a list of NFT serial numbers to retire.
 
-- `memo` is a memo for extra data.
+- `memo` is a memo describing the retiring, or for providing extra data for notifications.
 
     ```
     cleos push action youraccount transfernft '["testaccounta", "testaccountb", "dragons", [0, 1], "test transfernft memo"]' -p account
@@ -88,15 +115,19 @@ dRealms nonfungible actions that are used throughout the lifecycle of a nonfungi
 
 ### ACTION `transfernft()`
 
+Transfers one or more NFTs from a token family to a recipient. The to account will own all the transferred items if successful.
+
 - `from` is the name of the account sending the NFT.
 
 - `to` is the account receiving the NFT.
 
-- `token_name` is the token family of the NFT(s) to transfer.
+- `token_family` is the token family of the NFT(s) to transfer.
 
 - `serials` is a list of NFT serial numbers to transfer.
 
-- `memo` is a memo for extra data.
+- `memo` is a memo describing the transfer, or for providing extra data for notifications.
+
+Notifies: `from`, `to`
 
     ```
     cleos push action account transfernft '["testaccounta", "testaccountb", "dragons", [0, 1], "test transfernft memo"]' -p testaccounta
@@ -104,11 +135,13 @@ dRealms nonfungible actions that are used throughout the lifecycle of a nonfungi
 
 ### ACTION `consumenft()`
 
-* `token_name` is the token family of the NFT to consume.
+Consumes an NFT. Only executable if the token family allows token consumption.
+
+* `token_family` is the token family of the NFT to consume.
 
 * `serial` is the serial number of the NFT to consume.
 
-* `memo` is a memo for extra data.
+* `memo` is a memo for describing the token consumption, or for providing extra data for notifications.
 
     ```
     cleos push action account consumenft '["dragons", 1, "test consumenft memo"]' -p testaccounta
@@ -116,7 +149,9 @@ dRealms nonfungible actions that are used throughout the lifecycle of a nonfungi
 
 ### ACTION `newchecksum()`
 
-* `token_name` is the token family of the NFT to update.
+Sets a new checksum in an NFT license's checksum slot.
+
+* `token_family` is the token family of the NFT to update.
 
 * `license_owner` is the name of the NFT license owner.
 
@@ -130,7 +165,7 @@ dRealms nonfungible actions that are used throughout the lifecycle of a nonfungi
 
 ## License Actions
 
-The dRealms License interface allows (or disallows) third parties to obtain, modify, and remove licenses from NFT families. After obtaining a license, this interface allows such third parties to save a custom representation of an NFT for use in their game or application.
+The dRealms License interface allows third parties to obtain, modify, and remove licenses from NFT families. After obtaining a license, the interface allows such third parties to save a custom representation of an NFT for use in their game or application.
 
 ### ACTION `setlicmodel()`
 
@@ -138,11 +173,11 @@ This action will update the license model set on the token family. Currently, th
 
 Disabled is the default set by all new token families and disallows any additional licenses on the token (other than the initial one created along with the token family). 
 
-Open allows any other user to add a new license, provided the new license expiration falls between the min_license_length and max_license_length defined by calling set_config(). This setting is great for tokens that intend to have large mod communities, as it allows new token representations to be created at will.
+Open allows any other user to add a new license, provided the new license expiration falls between the min_license_length and max_license_length defined in the contract config table. This setting is great for tokens that intend to have large mod communities, as it allows new token representations to be created at will.
 
 Permissioned licensing means only the token issuer may create new licenses, but they may do so on behalf of another party (perhaps after negotiating a licensing deal).
 
-- `token_name` is the token family to update with the new license model.
+- `token_family` is the token family to update with the new license model.
 
 - `new_license_model` is the new license model being set.
 
@@ -152,19 +187,23 @@ Permissioned licensing means only the token issuer may create new licenses, but 
 
 ### ACTION `newlicense()`
 
-- `token_name` is the token family receiving the new license.
+Creates or renews a license on a token family.
+
+- `token_family` is the token family receiving the new license.
 
 - `owner` is the owner of the new license.
 
 - `expiration` is the expiration time of the new license.
 
     ```
-    cleos push action account newlicense '["dragons", "testaccountb", "2019-05-22T21:39:03"]' -p testaccounta
+    cleos push action account newlicense '["dragons", "testaccountb", "2020-05-22T18:00:00"]' -p testaccounta
     ```
 
 ### ACTION `eraselicense()`
 
-- `token_name` is the token family from which to erase the license.
+Erases a token license. Only executable if the license has expired.
+
+- `token_family` is the token family of the license to erase.
 
 - `license_owner` is the owner of the license to erase.
 
@@ -174,7 +213,13 @@ Permissioned licensing means only the token issuer may create new licenses, but 
 
 ### ACTION `setalgo()`
 
-- `token_name` is the token family of the license.
+Sets a new cheksum algorithm to be used when updating NFT checksums.
+
+An NFT checksum is how license owners ensure data integrity on their NFT. Whenever an NFT is updated (say, if it just leveled up) the checksum of the new NFT stats are set so token holders can see when their NFT stats have changed. 
+
+This setting is an optional dRealms feature, but is important for ensuring decentralization and auditability of tokenized assets.
+
+- `token_family` is the token family of the license.
 
 - `license_owner` is the name of the license owner.
 
@@ -186,9 +231,11 @@ Permissioned licensing means only the token issuer may create new licenses, but 
 
 ### ACTION `setati()`
 
-- `token_name` is the token family of the license.
+Sets a new ATI endpoint on a license. A license owner may only set an ATI endpoint for their own license.
 
-- `license_owner` is the name of the license owner.
+- `token_family` is the token family being assigned the new ATI.
+
+- `license_owner` is the name of the license owner assigning the ATI.
 
 - `new_ati_uri` is the new endpoint storing the license ATI.
 
@@ -198,7 +245,7 @@ Permissioned licensing means only the token issuer may create new licenses, but 
 
 ### ACTION `newuri()`
 
-The newuri() action will create a new uri within the given uri_group and assign it a key equal to uri_name. Currently, the three uri groups are: `full`, `base`, and `relative`. 
+Creates a new uri within the given uri_group and assigns it a key equal to uri_name. Currently, the three uri groups are: `full`, `base`, and `relative`. 
 
 A full uri is already complete - in other words, it doesn't need to be combined with another uri to make a complete endpoint.
 
@@ -206,15 +253,15 @@ A base uri is the first part of a complete uri. Concatenate a base uri with the 
 
 A relative uri is the second part of a base uri. When combined with a base uri from the respective license it forms a complete endpoint from which all metadata about that version of the NFT is returned. If adding a new relative uri, you must supply the serial number of the NFT as well.
 
-- `token_name` is the token family to upsert the uri for.
+- `token_family` is the token family being assigned the new uri.
 
-- `license_owner` is the owner of the license being updated.
+- `license_owner` is the owner of the license being assigned the uri.
 
 - `uri_group` is the group of the new uri.
 
 - `uri_name` is the name of the new uri.
 
-- `new_uri` is the uri as a string.
+- `new_uri` is the raw uri.
 
 - `optional: serial` if updating a relative uri, the serial number of the NFT to update.
 
@@ -228,15 +275,17 @@ A relative uri is the second part of a base uri. When combined with a base uri f
 
 ### ACTION `deleteuri()`
 
-- `token_name` is the token family to delete the uri from.
+Deletes a uri saved on a License or NFT. License owners may only delete their own uris.
+
+- `token_family` is the token family from which to delete the uri.
 
 - `license_owner` is the license owner of the uri being deleted.
 
-- `uri_group` is the group of the new uri ("full", "base", or "relative").
+- `uri_group` is the group of the uri being deleted ("full", "base", or "relative").
 
 - `uri_name` is the name of the uri to delete.
 
-- `optinal: serial` if deleteing a relative uri, the serial number of the NFT to delete from.
+- `optional: serial` if deleteing a relative uri, the serial number of the NFT from which to delete.
 
     ```
     cleos push action account deleteuri '["dragons", "testaccountb", "full", "website", null]' -p testaccountb
@@ -248,7 +297,7 @@ A relative uri is the second part of a base uri. When combined with a base uri f
 
 ## Fungible Actions
 
-The dRealms standard supports fungible tokens and allows for more granular customization when compared to the typical eosio.token format.
+The dRealms standard supports fungible tokens and allows for more granular customization when compared to the typical eosio.token format. To get started creating your fungible token, call the `create()` action and describe your token settings, then start issuing to recipients with the `issue()` action.
 
 ### ACTION `create()`
 
