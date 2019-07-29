@@ -6,7 +6,7 @@ drealms::~drealms() {}
 
 //======================== realm actions ========================
 
-ACTION drealms::setrealminfo(string drealms_version, symbol core_symbol, name realm_owner) {
+ACTION drealms::setrealminfo(string drealms_version, name realm_name) {
     //authenticate
     require_auth(get_self());
 
@@ -20,8 +20,7 @@ ACTION drealms::setrealminfo(string drealms_version, symbol core_symbol, name re
     //build new realminfo
     auto new_realminfo = realminfo{
         drealms_version, //drealms_version
-        core_symbol, //core_symbol
-        realm_owner, //realm_owner
+        realm_name, //realm_name
         nfts, //nonfungibles
         fts //fungibles
     };

@@ -17,6 +17,9 @@
 using namespace std;
 using namespace eosio;
 
+//TODO: add families to realmdata nfts vector in createnft
+//TODO: add symbol to realmdata fts vector in create
+
 CONTRACT drealms : public contract {
 
 public:
@@ -28,7 +31,7 @@ public:
     //======================== realm actions ========================
 
     //sets realminfo singleton
-    ACTION setrealminfo(string drealms_version, symbol core_symbol, name realm_owner);
+    ACTION setrealminfo(string drealms_version, name realm_name);
 
     //======================== nonfungible actions ========================
 
@@ -122,8 +125,7 @@ public:
     //ram: ~40 bytes
     TABLE realminfo {
         string drealms_version;
-        symbol core_symbol;
-        name realm_owner;
+        name realm_name;
         vector<name> nonfungibles;
         vector<symbol> fungibles;
     };
