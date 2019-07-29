@@ -48,6 +48,8 @@ ACTION drealms::createnft(name new_token_family, name issuer, bool retirable, bo
         col.family_name = new_token_family;
         col.issuer = issuer;
         col.license_model = name("disabled");
+        col.min_license_length = 604800;
+        col.max_license_length = 31449600;
         col.retirable = retirable;
         col.transferable = transferable;
         col.consumable = consumable;
@@ -72,8 +74,6 @@ ACTION drealms::createnft(name new_token_family, name issuer, bool retirable, bo
         col.full_uris = new_full_uris;
         col.base_uris = new_base_uris;
     });
-
-    
 
 }
 
