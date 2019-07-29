@@ -6,19 +6,19 @@ drealms::~drealms() {}
 
 //======================== realm actions ========================
 
-ACTION drealms::setrealminfo(string drealms_version, name realm_name) {
+ACTION drealms::setrealmdata(string drealms_version, name realm_name) {
     //authenticate
     require_auth(get_self());
 
-    //open realminfo singleton
-    realminfo_singleton realminfos(get_self(), get_self().value);
+    //open realmdata singleton
+    realmdata_singleton realmd(get_self(), get_self().value);
 
     //build nft and ft vectors
     vector<name> nfts = {};
     vector<symbol> fts = {};
 
-    //build new realminfo
-    auto new_realminfo = realminfo{
+    //build new realmdata
+    auto new_realmdata = realmdata{
         drealms_version, //drealms_version
         realm_name, //realm_name
         nfts, //nonfungibles
@@ -26,7 +26,7 @@ ACTION drealms::setrealminfo(string drealms_version, name realm_name) {
     };
 
     //set new config
-    realminfos.set(new_realminfo, get_self());
+    realmd.set(new_realmdata, get_self());
 }
 
 //======================== nonfungible actions ========================
@@ -72,6 +72,9 @@ ACTION drealms::createnft(name new_token_family, name issuer, bool retirable, bo
         col.full_uris = new_full_uris;
         col.base_uris = new_base_uris;
     });
+
+    
+
 }
 
 ACTION drealms::issuenft(name to, name token_family, string memo) {

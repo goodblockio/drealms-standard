@@ -30,8 +30,8 @@ public:
 
     //======================== realm actions ========================
 
-    //sets realminfo singleton
-    ACTION setrealminfo(string drealms_version, name realm_name);
+    //sets realmdata singleton
+    ACTION setrealmdata(string drealms_version, name realm_name);
 
     //======================== nonfungible actions ========================
 
@@ -123,13 +123,13 @@ public:
 
     //scope: singleton
     //ram: ~40 bytes
-    TABLE realminfo {
+    TABLE realmdata {
         string drealms_version;
         name realm_name;
         vector<name> nonfungibles;
         vector<symbol> fungibles;
     };
-    typedef singleton<name("realminfo"), realminfo> realminfo_singleton;
+    typedef singleton<name("realmdata"), realmdata> realmdata_singleton;
 
     //scope: get_self().value
     //ram: ~507 bytes
