@@ -25,11 +25,10 @@ public:
 
     ~drealms();
 
-    //======================== admin actions ========================
+    //======================== realm actions ========================
 
-    //sets config singleton
-    ACTION setconfig(string drealms_version, symbol core_sym, name contract_owner, 
-        uint32_t min_license_length, uint32_t max_license_length);
+    //sets realminfo singleton
+    ACTION setrealminfo(string drealms_version, symbol core_symbol, name realm_owner);
 
     //======================== nonfungible actions ========================
 
@@ -61,6 +60,9 @@ public:
 
     //erases a license
     ACTION eraselicense(name token_family, name license_owner);
+
+    //sets minimum and maximum license lengths
+    ACTION setlicminmax(name token_family, uint32_t min_license_length, uint32_t max_license_length);
 
     //sets a license's checksum algorithm
     ACTION setalgo(name token_family, name license_owner, string new_checksum_algo);
@@ -118,15 +120,14 @@ public:
 
     //scope: singleton
     //ram: ~40 bytes
-    TABLE config {
+    TABLE realminfo {
         string drealms_version;
-        symbol core_sym;
-        name contract_owner;
-        uint32_t default_license_length;
-        uint32_t min_license_length;
-        uint32_t max_license_length;
+        symbol core_symbol;
+        name realm_owner;
+        vector<name> nonfungibles;
+        vector<symbol> fungibles;
     };
-    typedef singleton<name("config"), config> configs_singleton;
+    typedef singleton<name("realminfo"), realminfo> realminfo_singleton;
 
     //scope: get_self().value
     //ram: ~507 bytes
@@ -134,6 +135,8 @@ public:
         name family_name;
         name issuer;
         name license_model;
+        uint32_t min_license_length;
+        uint32_t max_license_length;
         bool retirable;
         bool transferable;
         bool consumable;

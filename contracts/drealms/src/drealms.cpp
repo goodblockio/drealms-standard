@@ -4,28 +4,30 @@ drealms::drealms(name self, name code, datastream<const char*> ds) : contract(se
 
 drealms::~drealms() {}
 
-//======================== admin actions ========================
+//======================== realm actions ========================
 
-ACTION drealms::setconfig(string drealms_version, symbol core_sym, name contract_owner, 
-    uint32_t min_license_length, uint32_t max_license_length) {
-    
+ACTION drealms::setrealminfo(string drealms_version, symbol core_symbol, name realm_owner) {
     //authenticate
     require_auth(get_self());
 
-    //open configs singleton
-    configs_singleton configs(get_self(), get_self().value);
+    //open realminfo singleton
+    realminfo_singleton realminfos(get_self(), get_self().value);
 
-    //build new config
-    auto new_config = config{
+    //build nft and ft vectors
+    vector<name> nfts = {};
+    vector<symbol> fts = {};
+
+    //build new realminfo
+    auto new_realminfo = realminfo{
         drealms_version, //drealms_version
-        core_sym, //core_sym
-        contract_owner, //contract_owner
-        min_license_length, //min_license_length
-        max_license_length, //max_license_length
+        core_symbol, //core_symbol
+        realm_owner, //realm_owner
+        nfts, //nonfungibles
+        fts //fungibles
     };
 
     //set new config
-    configs.set(new_config, get_self());
+    realminfos.set(new_realminfo, get_self());
 }
 
 //======================== nonfungible actions ========================
@@ -243,15 +245,11 @@ ACTION drealms::newlicense(name token_family, name owner, time_point_sec expirat
     families_table families(get_self(), get_self().value);
     auto& fam = families.get(token_family.value, "token family not found");
 
-    //open configs singleton, get configs
-    configs_singleton configs(get_self(), get_self().value);
-    auto current_configs = configs.get();
-
     //intialize defaults
     name ram_payer = owner;
     time_point_sec new_expiration;
-    time_point_sec min_expiration = time_point_sec(current_time_point()) + current_configs.min_license_length;
-    time_point_sec max_expiration = time_point_sec(current_time_point()) + current_configs.max_license_length;
+    time_point_sec min_expiration = time_point_sec(current_time_point()) + fam.min_license_length;
+    time_point_sec max_expiration = time_point_sec(current_time_point()) + fam.max_license_length;
 
     //validate
     switch (fam.license_model.value) 
@@ -322,6 +320,25 @@ ACTION drealms::eraselicense(name token_family, name license_owner) {
 
     //erase license slot
     licenses.erase(lic);
+}
+
+ACTION drealms::setlicminmax(name token_family, uint32_t min_license_length, uint32_t max_license_length) {
+    //open families table, get family
+    families_table families(get_self(), get_self().value);
+    auto& fam = families.get(token_family.value, "token family not found");
+
+    //authenticate
+    require_auth(fam.issuer);
+
+    //validate
+    check(min_license_length > 604800, "min license length must be greater than 1 week");
+    check(max_license_length < 31449600, "max liensce length must be less than 1 year");
+
+    //modify licensing
+    families.modify(fam, same_payer, [&](auto& col) {
+        col.min_license_length = min_license_length;
+        col.max_license_length = max_license_length;
+    });
 }
 
 ACTION drealms::setalgo(name token_family, name license_owner, string new_checksum_algo) {
