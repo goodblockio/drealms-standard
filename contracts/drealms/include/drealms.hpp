@@ -39,7 +39,7 @@ public:
     ACTION createnft(name new_token_family, name issuer, bool retirable, bool transferable, bool consumable, uint64_t max_supply);
 
     //issues a new NFT token
-    ACTION issuenft(name to, name token_family, string memo);
+    ACTION issuenft(name to, name token_family, string memo, bool log);
 
     //retires nft(s) of a single token name, if retirable
     ACTION retirenft(name token_family, vector<uint64_t> serials, string memo);
@@ -52,6 +52,9 @@ public:
 
     //updates a checksum if found, inserts if not found
     ACTION newchecksum(name token_family, name license_owner, uint64_t serial, string new_checksum);
+
+    //logs an nfts data
+    ACTION lognft(name to, name token_family, uint64_t serial);
 
     //======================== licensing actions ========================
 

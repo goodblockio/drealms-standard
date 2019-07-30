@@ -77,7 +77,7 @@ ACTION drealms::createnft(name new_token_family, name issuer, bool retirable, bo
 
 }
 
-ACTION drealms::issuenft(name to, name token_family, string memo) {
+ACTION drealms::issuenft(name to, name token_family, string memo, bool log) {
     //open families table, get token family
     families_table families(get_self(), get_self().value);
     auto& fam = families.get(token_family.value, "token family not found");
@@ -110,6 +110,15 @@ ACTION drealms::issuenft(name to, name token_family, string memo) {
         col.relative_uris = new_relative_uris;
         col.checksums = new_checksums;
     });
+
+    if (log) {
+        //inline to lognft
+        action(permission_level{get_self(), name("active")}, get_self(), name("lognft"), make_tuple(
+            to, //to
+            token_family, //token_family
+            new_serial //serial
+        )).send();
+    }
 
     //notify recipient account
     require_recipient(to);
@@ -221,6 +230,11 @@ ACTION drealms::newchecksum(name token_family, name license_owner, uint64_t seri
     nfts.modify(nft, same_payer, [&](auto& col) {
         col.checksums[license_owner] = new_checksum;
     });
+}
+
+ACTION drealms::lognft(name to, name token_family, uint64_t serial) {
+    //authenticate
+    require_recipient(get_self());
 }
 
 //======================== licensing actions ========================
