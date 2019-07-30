@@ -19,6 +19,8 @@ using namespace eosio;
 
 //TODO: add families to realmdata nfts vector in createnft
 //TODO: add symbol to realmdata fts vector in create
+//TODO: rename createnft() to definenft()
+//TODO: rename issuenft() to mintnft()
 
 CONTRACT drealms : public contract {
 
