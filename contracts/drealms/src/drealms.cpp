@@ -29,37 +29,50 @@ ACTION drealms::setrealmdata(string drealms_version, name realm_name) {
     realmd.set(new_realmdata, get_self());
 }
 
-//======================== nonfungible actions ========================
+//======================== schema actions ========================
 
-ACTION drealms::createnft(name new_token_family, name issuer, bool retirable, bool transferable, bool consumable, uint64_t max_supply) {
+ACTION drealms::newnftschema(name new_schema_name, name issuer, uint64_t max_supply, symbol exp_symbol,
+    bool retirable, bool transferable, bool consumable, bool activatable) {
     //authenticate
     require_auth(issuer);
 
-    //open families table, search for new_token_family
-    families_table families(get_self(), get_self().value);
-    auto fam = families.find(new_token_family.value);
+    //open schemas table, search for schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto sch = schemas.find(new_schema_name.value);
 
     //validate
-    check(fam == families.end(), "token family name already exists");
+    check(sch == schemas.end(), "schema name already exists");
     check(max_supply > 0, "max supply must be a positive number");
+
+    //TODO: validate exp_symbol
+
+    //build initial settings
+    map<name, bool> initial_settings;
+    initial_settings[name("retirable")] = retirable;
+    initial_settings[name("transferable")] = transferable;
+    initial_settings[name("consumable")] = consumable;
+    initial_settings[name("activatable")] = activatable;
+
+    //build initial default stats
+    map<name, uint32_t> initial_default_stats;
     
-    //emplace new token family
-    families.emplace(issuer, [&](auto& col) {
-        col.family_name = new_token_family;
+    //emplace new schema
+    schemas.emplace(issuer, [&](auto& col) {
+        col.schema_name = new_schema_name;
         col.issuer = issuer;
-        col.license_model = name("disabled");
-        col.min_license_length = 604800;
-        col.max_license_length = 31449600;
-        col.retirable = retirable;
-        col.transferable = transferable;
-        col.consumable = consumable;
         col.supply = uint64_t(0);
         col.issued_supply = uint64_t(0);
         col.max_supply = max_supply;
+        col.license_model = name("disabled");
+        col.min_license_length = 604800;
+        col.max_license_length = 31449600;
+        col.settings = initial_settings;
+        col.default_stats = initial_default_stats;
+        col.exp_symbol = exp_symbol;
     });
 
     //open licenses table, find license
-    licenses_table licenses(get_self(), new_token_family.value);
+    licenses_table licenses(get_self(), new_schema_name.value);
     auto lic = licenses.find(issuer.value);
 
     //build initial uri maps
@@ -75,200 +88,128 @@ ACTION drealms::createnft(name new_token_family, name issuer, bool retirable, bo
         col.base_uris = new_base_uris;
     });
 
+    //TODO: add schema_name to realmdata.nonfungibles[]
+
 }
 
-ACTION drealms::issuenft(name to, name token_family, string memo, bool log) {
-    //open families table, get token family
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
+ACTION drealms::toggle(name schema_name, name setting_name) {
+    //open schemas table, search for schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
 
     //authenticate
-    require_auth(fam.issuer);
+    require_auth(sch.issuer);
 
     //validate
-    check(is_account(to), "to account does not exist");
-    check(fam.supply + 1 <= fam.max_supply, "issuing would breach max supply");
+    auto set_itr = sch.settings.find(setting_name);
+    check(set_itr != sch.settings.end(), "setting not found");
 
-    //open nfts table, get new serial
-    nfts_table nfts(get_self(), token_family.value);
-    uint64_t new_serial = fam.issued_supply + 1;
+    map<name, bool> new_settings = sch.settings;
+    bool toggled_setting = !new_settings[setting_name];
 
-    //increment nft supply and issued supply
-    families.modify(fam, same_payer, [&](auto& col) {
-        col.issued_supply += uint64_t(1);
-        col.supply += uint64_t(1);
+    //toggle settings
+    schemas.modify(sch, same_payer, [&](auto& col) {
+        col.settings[setting_name] = toggled_setting;
     });
-
-    //build initial uri and checksum maps
-    map<name, string> new_relative_uris;
-    map<name, string> new_checksums;
-
-    //emplace new NFT
-    nfts.emplace(fam.issuer, [&](auto& col) {
-        col.serial = new_serial;
-        col.owner = to;
-        col.relative_uris = new_relative_uris;
-        col.checksums = new_checksums;
-    });
-
-    if (log) {
-        //inline to lognft
-        action(permission_level{get_self(), name("active")}, get_self(), name("lognft"), make_tuple(
-            to, //to
-            token_family, //token_family
-            new_serial //serial
-        )).send();
-    }
-
-    //notify recipient account
-    require_recipient(to);
 }
 
-ACTION drealms::retirenft(name token_family, vector<uint64_t> serials, string memo) {
-    //open families table, get family
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
+ACTION drealms::addstat(name schema_name, name stat_name, uint32_t default_value) {
+    //open schemas table, search for schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
 
     //authenticate
-    require_auth(fam.issuer);
+    require_auth(sch.issuer);
 
     //validate
-    check(fam.retirable, "token is not retirable");
-    check(fam.supply >= serials.size(), "cannot retire supply below 0");
+    auto stat_itr = sch.default_stats.find(stat_name);
+    check(stat_itr == sch.default_stats.end(), "stat already exists in schema");
 
-    //reduce nft supply
-    families.modify(fam, same_payer, [&](auto& col) {
-        col.supply -= serials.size();
+    //add stat
+    schemas.modify(sch, same_payer, [&](auto& col) {
+        col.default_stats[stat_name] = default_value;
     });
-
-    //loop over each serial and erase nft
-    for (uint64_t serial : serials) {
-        //open nfts table, get nft
-        nfts_table nfts(get_self(), token_family.value);
-        auto& nft = nfts.get(serial, "nft not found");
-
-        //check that issuer owns each nft before retiring
-        check(nft.owner == fam.issuer, "only issuer may retire tokens");
-
-        //retire nft
-        nfts.erase(nft);
-    }
 }
 
-ACTION drealms::transfernft(name from, name to, name token_family, vector<uint64_t> serials, string memo) {
+ACTION drealms::syncstats(name schema_name, uint64_t serial) {
+    //open schemas table, search for schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //TODO: map stats to nft stats (new stats start at default value, existing stats are untouched)
+}
+
+ACTION drealms::awardexp(name schema_name, name license_owner, uint64_t serial, asset experience) {
+    //open schemas table, search for schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open license table, search for license
+    licenses_table licenses(get_self(), schema_name.value);
+    auto lic = licenses.find(license_owner.value);
+
     //authenticate
-    require_auth(from);
+    require_auth(lic->owner);
 
-    //opens families table, get family data
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
-
-    //validate
-    check(fam.transferable, "token is not transferable");
-
-    //loop over each serial and change ownership
-    for (uint64_t serial : serials) {
-        //open nfts table, get nft
-        nfts_table nfts(get_self(), token_family.value);
-        auto& nft = nfts.get(serial, "nft not found");
-
-        //validate
-        check(from == nft.owner, "only nft owner is allowed to transfer");
-
-        //modify nft ownership to recipient
-        nfts.modify(nft, same_payer, [&](auto& col) {
-            col.owner = to;
-        });
-    }
-
-    //notify accounts
-    require_recipient(from);
-    require_recipient(to);
+    //TODO: award experience points
 }
 
-ACTION drealms::consumenft(name token_family, uint64_t serial, string memo) {
-    //open families table, get family
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
+ACTION drealms::spendpoint(name schema_name, uint64_t serial, name stat_name) {
+    //open schemas table, search for schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
 
     //open nfts table, get nft
-    nfts_table nfts(get_self(), token_family.value);
+    nfts_table nfts(get_self(), schema_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
     //authenticate
     require_auth(nft.owner);
 
     //validate
-    check(fam.consumable, "nft is not consumable");
+    auto stat_itr = nft.stats.find(stat_name);
+    check(stat_itr != nft.stats.end(), "stat name not found");
+    check(nft.unspent >= 1, "nft has no points to spend");
 
-    //decrement nft supply
-    families.modify(fam, same_payer, [&](auto& col) {
-        col.supply -= uint64_t(1);
-    });
-
-    //consume nft
-    nfts.erase(nft);
-}
-
-ACTION drealms::newchecksum(name token_family, name license_owner, uint64_t serial, string new_checksum) {
-    //open families table, get family
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
-
-    //open licenses table, get license
-    licenses_table licenses(get_self(), token_family.value);
-    auto& lic = licenses.get(license_owner.value, "license not found");
-
-    //authenticate
-    require_auth(lic.owner);
-
-    //open nft table, get nft
-    nfts_table nfts(get_self(), token_family.value);
-    auto& nft = nfts.get(serial, "nft not found");
-
-    //modify nft relative uri
+    //spend stat point
     nfts.modify(nft, same_payer, [&](auto& col) {
-        col.checksums[license_owner] = new_checksum;
+        col.stats[stat_name] += uint32_t(1);
+        col.unspent -= 1;
     });
-}
-
-ACTION drealms::lognft(name to, name token_family, uint64_t serial) {
-    //authenticate
-    require_recipient(get_self());
 }
 
 //======================== licensing actions ========================
 
-ACTION drealms::setlicmodel(name token_family, name new_license_model) {
-    //open families table, get family
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
+ACTION drealms::setlicmodel(name schema_name, name new_license_model) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
 
     //authenticate
-    require_auth(fam.issuer);
+    require_auth(sch.issuer);
 
     //validate
     check(validate_license_model(new_license_model), "invalid license model");
 
     //modify licensing
-    families.modify(fam, same_payer, [&](auto& col) {
+    schemas.modify(sch, same_payer, [&](auto& col) {
         col.license_model = new_license_model;
     });
 }
 
-ACTION drealms::newlicense(name token_family, name owner, time_point_sec expiration) {
-    //open families table, get family
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
+ACTION drealms::newlicense(name schema_name, name owner, time_point_sec expiration) {
+    //open schemas table, get schmea
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schemas not found");
 
     //intialize defaults
     name ram_payer = owner;
     time_point_sec new_expiration;
-    time_point_sec min_expiration = time_point_sec(current_time_point()) + fam.min_license_length;
-    time_point_sec max_expiration = time_point_sec(current_time_point()) + fam.max_license_length;
+    time_point_sec min_expiration = time_point_sec(current_time_point()) + sch.min_license_length;
+    time_point_sec max_expiration = time_point_sec(current_time_point()) + sch.max_license_length;
 
     //validate
-    switch (fam.license_model.value) 
+    switch (sch.license_model.value) 
     {
         case name("disabled").value : 
             check(false, "licensing is disabled");
@@ -279,8 +220,8 @@ ACTION drealms::newlicense(name token_family, name owner, time_point_sec expirat
             check(expiration < max_expiration, "expiration is more than maximum expiration");
             break;
         case name("permissioned").value : 
-            require_auth(fam.issuer);
-            ram_payer = fam.issuer;
+            require_auth(sch.issuer);
+            ram_payer = sch.issuer;
             new_expiration = expiration;
             break;
         default:
@@ -288,7 +229,7 @@ ACTION drealms::newlicense(name token_family, name owner, time_point_sec expirat
     }
 
     //open license table, search for license
-    licenses_table licenses(get_self(), token_family.value);
+    licenses_table licenses(get_self(), schema_name.value);
     auto lic = licenses.find(owner.value);
 
     if (lic == licenses.end()) {
@@ -312,13 +253,13 @@ ACTION drealms::newlicense(name token_family, name owner, time_point_sec expirat
     }
 }
 
-ACTION drealms::eraselicense(name token_family, name license_owner) {
-    //open families table, get family
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
+ACTION drealms::eraselicense(name schema_name, name license_owner) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
 
     //open licenses table, get license
-    licenses_table licenses(get_self(), token_family.value);
+    licenses_table licenses(get_self(), schema_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
 
     //determine if expired
@@ -326,7 +267,7 @@ ACTION drealms::eraselicense(name token_family, name license_owner) {
 
     //authenticate based on expired
     if (expired) {
-        check(has_auth(lic.owner) || has_auth(fam.issuer), "only token issuer or license owner may erase after expiration");
+        check(has_auth(lic.owner) || has_auth(sch.issuer), "only token issuer or license owner may erase after expiration");
     } else {
         require_auth(lic.owner);
     }
@@ -338,28 +279,28 @@ ACTION drealms::eraselicense(name token_family, name license_owner) {
     licenses.erase(lic);
 }
 
-ACTION drealms::setlicminmax(name token_family, uint32_t min_license_length, uint32_t max_license_length) {
-    //open families table, get family
-    families_table families(get_self(), get_self().value);
-    auto& fam = families.get(token_family.value, "token family not found");
+ACTION drealms::setlicminmax(name schema_name, uint32_t min_license_length, uint32_t max_license_length) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
 
     //authenticate
-    require_auth(fam.issuer);
+    require_auth(sch.issuer);
 
     //validate
     check(min_license_length > 604800, "min license length must be greater than 1 week");
     check(max_license_length < 31449600, "max liensce length must be less than 1 year");
 
     //modify licensing
-    families.modify(fam, same_payer, [&](auto& col) {
+    schemas.modify(sch, same_payer, [&](auto& col) {
         col.min_license_length = min_license_length;
         col.max_license_length = max_license_length;
     });
 }
 
-ACTION drealms::setalgo(name token_family, name license_owner, string new_checksum_algo) {
+ACTION drealms::setalgo(name schema_name, name license_owner, string new_checksum_algo) {
     //open license table, search for license
-    licenses_table licenses(get_self(), token_family.value);
+    licenses_table licenses(get_self(), schema_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
 
     //authenticate
@@ -371,9 +312,9 @@ ACTION drealms::setalgo(name token_family, name license_owner, string new_checks
     });
 }
 
-ACTION drealms::setati(name token_family, name license_owner, string new_ati_uri) {
+ACTION drealms::setati(name schema_name, name license_owner, string new_ati_uri) {
     //open license table, search for license
-    licenses_table licenses(get_self(), token_family.value);
+    licenses_table licenses(get_self(), schema_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
 
     //authenticate
@@ -385,15 +326,15 @@ ACTION drealms::setati(name token_family, name license_owner, string new_ati_uri
     });
 }
 
-ACTION drealms::newuri(name token_family, name license_owner, name uri_group, name uri_name, string new_uri, optional<uint64_t> serial) {
+ACTION drealms::newuri(name schema_name, name license_owner, name uri_group, name uri_name, string new_uri, optional<uint64_t> serial) {
     //open licenses table, get license
-    licenses_table licenses(get_self(), token_family.value);
+    licenses_table licenses(get_self(), schema_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
 
     //authenticate
     require_auth(lic.owner);
 
-    //modify appropriate uri list
+    //TODO: change to switch statement
     if (uri_group == name("full")) { //update full uri
         
         //update full uri
@@ -416,7 +357,7 @@ ACTION drealms::newuri(name token_family, name license_owner, name uri_group, na
         }
 
         //open nfts table, get nft
-        nfts_table nfts(get_self(), token_family.value);
+        nfts_table nfts(get_self(), schema_name.value);
         auto& nft = nfts.get(*serial, "nft not found");
 
         //update relative uri
@@ -429,9 +370,9 @@ ACTION drealms::newuri(name token_family, name license_owner, name uri_group, na
     }
 }
 
-ACTION drealms::deleteuri(name token_family, name license_owner, name uri_group, name uri_name, optional<uint64_t> serial) {
+ACTION drealms::deleteuri(name schema_name, name license_owner, name uri_group, name uri_name, optional<uint64_t> serial) {
     //open licenses table, get license
-    licenses_table licenses(get_self(), token_family.value);
+    licenses_table licenses(get_self(), schema_name.value);
     auto& lic = licenses.get(license_owner.value, "license not found");
 
     //authenticate
@@ -472,7 +413,7 @@ ACTION drealms::deleteuri(name token_family, name license_owner, name uri_group,
         }
 
         //open nfts table, get nft
-        nfts_table nfts(get_self(), token_family.value);
+        nfts_table nfts(get_self(), schema_name.value);
         auto& nft = nfts.get(*serial, "nft not found");
 
         //find uri in uris list
@@ -490,6 +431,222 @@ ACTION drealms::deleteuri(name token_family, name license_owner, name uri_group,
         check(false, "invalid uri group");
     }
 
+}
+
+//======================== nonfungible actions ========================
+
+ACTION drealms::issuenft(name to, name schema_name, string memo, bool log) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //authenticate
+    require_auth(sch.issuer);
+
+    //validate
+    check(is_account(to), "to account does not exist");
+    check(sch.supply + 1 <= sch.max_supply, "issuing would breach max supply");
+
+    //open nfts table, get new serial
+    nfts_table nfts(get_self(), schema_name.value);
+    uint64_t new_serial = sch.issued_supply + 1;
+
+    //increment nft supply and issued supply
+    schemas.modify(sch, same_payer, [&](auto& col) {
+        col.issued_supply += uint64_t(1);
+        col.supply += uint64_t(1);
+    });
+
+    //build initial uri and checksum maps
+    map<name, string> new_relative_uris;
+    map<name, string> new_checksums;
+
+    //TODO: calculate next_level formula
+    
+    //build default stats
+    map<name, uint32_t> intitial_stats = sch.default_stats;
+
+    //emplace new NFT
+    nfts.emplace(sch.issuer, [&](auto& col) {
+        col.serial = new_serial;
+        col.owner = to;
+        col.level = uint16_t(1);
+        col.experience = asset(0, sch.exp_symbol);
+        col.next_level = asset(1000, sch.exp_symbol);
+        col.unspent = uint8_t(0);
+        col.stats = intitial_stats;
+        col.relative_uris = new_relative_uris;
+        col.checksums = new_checksums;
+    });
+
+    //inline to lognft if true
+    if (log) {
+        //requires drealms@eosio.code on active perm
+        action(permission_level{get_self(), name("active")}, get_self(), name("lognft"), make_tuple(
+            to, //to
+            schema_name, //schema_name
+            new_serial //serial
+        )).send();
+    }
+
+    //notify recipient account
+    require_recipient(to);
+}
+
+ACTION drealms::retirenft(name schema_name, vector<uint64_t> serials, string memo) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //authenticate
+    require_auth(sch.issuer);
+
+    //validate
+    check(sch.settings.at(name("retirable")), "nft is not retirable");
+    check(sch.supply >= serials.size(), "cannot retire supply below 0");
+
+    //reduce nft supply
+    schemas.modify(sch, same_payer, [&](auto& col) {
+        col.supply -= serials.size();
+    });
+
+    //loop over each serial and erase nft
+    for (uint64_t serial : serials) {
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), schema_name.value);
+        auto& nft = nfts.get(serial, "nft not found");
+
+        //check that issuer owns each nft before retiring
+        check(nft.owner == sch.issuer, "only issuer may retire tokens");
+
+        //retire nft
+        nfts.erase(nft);
+    }
+}
+
+ACTION drealms::transfernft(name from, name to, name schema_name, vector<uint64_t> serials, string memo) {
+    //authenticate
+    require_auth(from);
+
+    //opens schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //validate
+    check(sch.settings.at(name("transferable")), "nft is not transferable");
+    check(is_account(to), "recipient account does not exist");
+
+    //loop over each serial and change ownership
+    for (uint64_t serial : serials) {
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), schema_name.value);
+        auto& nft = nfts.get(serial, "nft not found");
+
+        //validate
+        check(from == nft.owner, "only nft owner is allowed to transfer");
+
+        //modify nft ownership to recipient
+        nfts.modify(nft, same_payer, [&](auto& col) {
+            col.owner = to;
+        });
+    }
+
+    //notify accounts
+    require_recipient(from);
+    require_recipient(to);
+}
+
+ACTION drealms::consumenft(name schema_name, uint64_t serial, string memo) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open nfts table, get nft
+    nfts_table nfts(get_self(), schema_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //authenticate
+    require_auth(nft.owner);
+
+    //validate
+    check(sch.settings.at(name("consumable")), "nft is not consumable");
+
+    //decrement nft supply
+    schemas.modify(sch, same_payer, [&](auto& col) {
+        col.supply -= uint64_t(1);
+    });
+
+    //consume nft
+    nfts.erase(nft);
+}
+
+ACTION drealms::activatenft(name schema_name, uint64_t serial, string memo) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open nfts table, get nft
+    nfts_table nfts(get_self(), schema_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //authenticate
+    require_auth(nft.owner);
+
+    //validate
+    check(sch.settings.at(name("activatable")), "nft is not activatable");
+}
+
+ACTION drealms::newchecksum(name schema_name, name license_owner, uint64_t serial, string new_checksum) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open licenses table, get license
+    licenses_table licenses(get_self(), schema_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
+
+    //authenticate
+    require_auth(lic.owner);
+
+    //open nft table, get nft
+    nfts_table nfts(get_self(), schema_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //modify nft relative uri
+    nfts.modify(nft, same_payer, [&](auto& col) {
+        col.checksums[license_owner] = new_checksum;
+    });
+}
+
+ACTION drealms::lognft(name to, name schema_name, uint64_t serial) {
+    //authenticate
+    require_recipient(get_self());
+}
+
+ACTION drealms::levelup(name schema_name, uint64_t serial) {
+    //opens schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open nfts table, get nft
+    nfts_table nfts(get_self(), schema_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //authenticate
+    require_auth(nft.owner);
+
+    //TODO: calculate next level cost
+    // asset level_up_cost = ...
+
+    //validate
+    // check(); //check nft has enought points to level up
+
+    //level up nft
+    nfts.modify(nft, same_payer, [&](auto& col) {
+        col.level += 1;
+        // col.experience -= level_up_cost;
+        col.unspent += 1;
+    });
 }
 
 //======================== fungible actions ========================
@@ -510,7 +667,9 @@ ACTION drealms::create(name issuer, bool retirable, bool transferable, bool cons
     //validate
     check(existing == currencies.end(), "token with symbol already exists" );
 
-    //empalce new currency
+    //TODO: add symbol to realmdata.fungibles[]
+
+    //emplace new currency
     currencies.emplace(get_self(), [&]( auto& col) {
        col.issuer = issuer;
        col.retirable = retirable;

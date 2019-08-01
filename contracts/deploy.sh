@@ -2,7 +2,7 @@
 
 if [[ "$1" == "drealms" ]]; then
     contract=drealms
-    account=drealms
+    account=realmaccount
 else
     echo "need contract"
     exit 0
