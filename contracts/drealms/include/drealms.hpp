@@ -22,6 +22,7 @@ using namespace eosio;
 //TODO: update fungibles and nonfungibles vectors when creating new schema or fts
 //TODO: design next_level formulae
 //TODO: refactor table opens
+//TODO: remove next_level from nft, instead set level-up formula in schema and calculate next_level from current level
 
 //TODO?: rename issuenft() to mintnft()
 //TODO?: move relatives and checksums to separate table
@@ -40,7 +41,7 @@ public:
     //sets realmdata singleton
     ACTION setrealmdata(string drealms_version, name realm_name);
 
-    //======================== schema/nonfungible actions ========================
+    //======================== schema actions ========================
 
     //creates a new nft schema, initially sets licensing to disabled
     ACTION newnftschema(name new_schema_name, name issuer, uint64_t max_supply, symbol exp_symbol,
@@ -55,26 +56,10 @@ public:
     //syncs a token with the map of stats in schema
     ACTION syncstats(name schema_name, uint64_t serial);
 
-    //issues a new nft
-    ACTION issuenft(name to, name schema_name, string memo, bool log);
+    //TODO: make action to set levelling formula
 
-    //retires nft(s) of a single token name, if retirable
-    ACTION retirenft(name schema_name, vector<uint64_t> serials, string memo);
-
-    //transfers nft(s) of a single token name to recipient account, if transferable
-    ACTION transfernft(name from, name to, name schema_name, vector<uint64_t> serials, string memo);
-
-    //consumes an nft, if consumable
-    ACTION consumenft(name schema_name, uint64_t serial, string memo);
-
-    //activate and nft, if activatable
-    ACTION activatenft(name schema_name, uint64_t serial, string memo);
-
-    //updates a checksum if found, inserts if not found
-    ACTION newchecksum(name schema_name, name license_owner, uint64_t serial, string new_checksum);
-
-    //logs an nfts data
-    ACTION lognft(name to, name schema_name, uint64_t serial);
+    //called to award an nft with experience
+    ACTION awardexp(name schema_name, name license_owner, uint64_t serial, asset experience);
 
     //======================== licensing actions ========================
 
@@ -101,6 +86,35 @@ public:
 
     //deletes a uri
     ACTION deleteuri(name schema_name, name license_owner, name uri_group, name uri_name, optional<uint64_t> serial);
+
+    //======================== nonfungible actions ========================
+
+    //issues a new nft
+    ACTION issuenft(name to, name schema_name, string memo, bool log);
+
+    //retires nft(s) of a single token name, if retirable
+    ACTION retirenft(name schema_name, vector<uint64_t> serials, string memo);
+
+    //transfers nft(s) of a single token name to recipient account, if transferable
+    ACTION transfernft(name from, name to, name schema_name, vector<uint64_t> serials, string memo);
+
+    //consumes an nft, if consumable
+    ACTION consumenft(name schema_name, uint64_t serial, string memo);
+
+    //activate and nft, if activatable
+    ACTION activatenft(name schema_name, uint64_t serial, string memo);
+
+    //updates a checksum if found, inserts if not found
+    ACTION newchecksum(name schema_name, name license_owner, uint64_t serial, string new_checksum);
+
+    //logs an nfts data
+    ACTION lognft(name to, name schema_name, uint64_t serial);
+
+    //spends earned experience to level up
+    ACTION levelup(name schema_name, uint64_t serial);
+
+    //spends an available point on a stat to upgrade it
+    ACTION spendpoint(name schema_name, uint64_t serial, name stat_name);
 
     //======================== fungible actions ========================
 

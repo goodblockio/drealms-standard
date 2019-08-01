@@ -29,7 +29,7 @@ ACTION drealms::setrealmdata(string drealms_version, name realm_name) {
     realmd.set(new_realmdata, get_self());
 }
 
-//======================== nonfungible actions ========================
+//======================== schema actions ========================
 
 ACTION drealms::newnftschema(name new_schema_name, name issuer, uint64_t max_supply, symbol exp_symbol,
     bool retirable, bool transferable, bool consumable, bool activatable) {
@@ -139,192 +139,43 @@ ACTION drealms::syncstats(name schema_name, uint64_t serial) {
     //TODO: map stats to nft stats (new stats start at default value, existing stats are untouched)
 }
 
-ACTION drealms::issuenft(name to, name schema_name, string memo, bool log) {
-    //open schemas table, get schema
+ACTION drealms::awardexp(name schema_name, name license_owner, uint64_t serial, asset experience) {
+    //open schemas table, search for schema
     schemas_table schemas(get_self(), get_self().value);
     auto& sch = schemas.get(schema_name.value, "schema not found");
 
-    //authenticate
-    require_auth(sch.issuer);
-
-    //validate
-    check(is_account(to), "to account does not exist");
-    check(sch.supply + 1 <= sch.max_supply, "issuing would breach max supply");
-
-    //open nfts table, get new serial
-    nfts_table nfts(get_self(), schema_name.value);
-    uint64_t new_serial = sch.issued_supply + 1;
-
-    //increment nft supply and issued supply
-    schemas.modify(sch, same_payer, [&](auto& col) {
-        col.issued_supply += uint64_t(1);
-        col.supply += uint64_t(1);
-    });
-
-    //build initial uri and checksum maps
-    map<name, string> new_relative_uris;
-    map<name, string> new_checksums;
-
-    //TODO: calculate next_level formula
-    
-    //build default stats
-    map<name, uint32_t> intitial_stats = sch.default_stats;
-
-    //emplace new NFT
-    nfts.emplace(sch.issuer, [&](auto& col) {
-        col.serial = new_serial;
-        col.owner = to;
-        col.level = uint16_t(1);
-        col.experience = asset(0, sch.exp_symbol);
-        col.next_level = asset(1000, sch.exp_symbol);
-        col.unspent = uint8_t(0);
-        col.stats = intitial_stats;
-        col.relative_uris = new_relative_uris;
-        col.checksums = new_checksums;
-    });
-
-    //inline to lognft if true
-    if (log) {
-        //requires drealms@eosio.code on active perm
-        action(permission_level{get_self(), name("active")}, get_self(), name("lognft"), make_tuple(
-            to, //to
-            schema_name, //schema_name
-            new_serial //serial
-        )).send();
-    }
-
-    //notify recipient account
-    require_recipient(to);
-}
-
-ACTION drealms::retirenft(name schema_name, vector<uint64_t> serials, string memo) {
-    //open schemas table, get schema
-    schemas_table schemas(get_self(), get_self().value);
-    auto& sch = schemas.get(schema_name.value, "schema not found");
-
-    //authenticate
-    require_auth(sch.issuer);
-
-    //validate
-    check(sch.settings.at(name("retirable")), "nft is not retirable");
-    check(sch.supply >= serials.size(), "cannot retire supply below 0");
-
-    //reduce nft supply
-    schemas.modify(sch, same_payer, [&](auto& col) {
-        col.supply -= serials.size();
-    });
-
-    //loop over each serial and erase nft
-    for (uint64_t serial : serials) {
-        //open nfts table, get nft
-        nfts_table nfts(get_self(), schema_name.value);
-        auto& nft = nfts.get(serial, "nft not found");
-
-        //check that issuer owns each nft before retiring
-        check(nft.owner == sch.issuer, "only issuer may retire tokens");
-
-        //retire nft
-        nfts.erase(nft);
-    }
-}
-
-ACTION drealms::transfernft(name from, name to, name schema_name, vector<uint64_t> serials, string memo) {
-    //authenticate
-    require_auth(from);
-
-    //opens schemas table, get schema
-    schemas_table schemas(get_self(), get_self().value);
-    auto& sch = schemas.get(schema_name.value, "schema not found");
-
-    //validate
-    check(sch.settings.at(name("transferable")), "nft is not transferable");
-    check(is_account(to), "recipient account does not exist");
-
-    //loop over each serial and change ownership
-    for (uint64_t serial : serials) {
-        //open nfts table, get nft
-        nfts_table nfts(get_self(), schema_name.value);
-        auto& nft = nfts.get(serial, "nft not found");
-
-        //validate
-        check(from == nft.owner, "only nft owner is allowed to transfer");
-
-        //modify nft ownership to recipient
-        nfts.modify(nft, same_payer, [&](auto& col) {
-            col.owner = to;
-        });
-    }
-
-    //notify accounts
-    require_recipient(from);
-    require_recipient(to);
-}
-
-ACTION drealms::consumenft(name schema_name, uint64_t serial, string memo) {
-    //open schemas table, get schema
-    schemas_table schemas(get_self(), get_self().value);
-    auto& sch = schemas.get(schema_name.value, "schema not found");
-
-    //open nfts table, get nft
-    nfts_table nfts(get_self(), schema_name.value);
-    auto& nft = nfts.get(serial, "nft not found");
-
-    //authenticate
-    require_auth(nft.owner);
-
-    //validate
-    check(sch.settings.at(name("consumable")), "nft is not consumable");
-
-    //decrement nft supply
-    schemas.modify(sch, same_payer, [&](auto& col) {
-        col.supply -= uint64_t(1);
-    });
-
-    //consume nft
-    nfts.erase(nft);
-}
-
-ACTION drealms::activatenft(name schema_name, uint64_t serial, string memo) {
-    //open schemas table, get schema
-    schemas_table schemas(get_self(), get_self().value);
-    auto& sch = schemas.get(schema_name.value, "schema not found");
-
-    //open nfts table, get nft
-    nfts_table nfts(get_self(), schema_name.value);
-    auto& nft = nfts.get(serial, "nft not found");
-
-    //authenticate
-    require_auth(nft.owner);
-
-    //validate
-    check(sch.settings.at(name("activatable")), "nft is not activatable");
-}
-
-ACTION drealms::newchecksum(name schema_name, name license_owner, uint64_t serial, string new_checksum) {
-    //open schemas table, get schema
-    schemas_table schemas(get_self(), get_self().value);
-    auto& sch = schemas.get(schema_name.value, "schema not found");
-
-    //open licenses table, get license
+    //open license table, search for license
     licenses_table licenses(get_self(), schema_name.value);
-    auto& lic = licenses.get(license_owner.value, "license not found");
+    auto lic = licenses.find(license_owner.value);
 
     //authenticate
-    require_auth(lic.owner);
+    require_auth(lic->owner);
 
-    //open nft table, get nft
+    //TODO: award experience points
+}
+
+ACTION drealms::spendpoint(name schema_name, uint64_t serial, name stat_name) {
+    //open schemas table, search for schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open nfts table, get nft
     nfts_table nfts(get_self(), schema_name.value);
     auto& nft = nfts.get(serial, "nft not found");
 
-    //modify nft relative uri
-    nfts.modify(nft, same_payer, [&](auto& col) {
-        col.checksums[license_owner] = new_checksum;
-    });
-}
-
-ACTION drealms::lognft(name to, name schema_name, uint64_t serial) {
     //authenticate
-    require_recipient(get_self());
+    require_auth(nft.owner);
+
+    //validate
+    auto stat_itr = nft.stats.find(stat_name);
+    check(stat_itr != nft.stats.end(), "stat name not found");
+    check(nft.unspent >= 1, "nft has no points to spend");
+
+    //spend stat point
+    nfts.modify(nft, same_payer, [&](auto& col) {
+        col.stats[stat_name] += uint32_t(1);
+        col.unspent -= 1;
+    });
 }
 
 //======================== licensing actions ========================
@@ -580,6 +431,222 @@ ACTION drealms::deleteuri(name schema_name, name license_owner, name uri_group, 
         check(false, "invalid uri group");
     }
 
+}
+
+//======================== nonfungible actions ========================
+
+ACTION drealms::issuenft(name to, name schema_name, string memo, bool log) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //authenticate
+    require_auth(sch.issuer);
+
+    //validate
+    check(is_account(to), "to account does not exist");
+    check(sch.supply + 1 <= sch.max_supply, "issuing would breach max supply");
+
+    //open nfts table, get new serial
+    nfts_table nfts(get_self(), schema_name.value);
+    uint64_t new_serial = sch.issued_supply + 1;
+
+    //increment nft supply and issued supply
+    schemas.modify(sch, same_payer, [&](auto& col) {
+        col.issued_supply += uint64_t(1);
+        col.supply += uint64_t(1);
+    });
+
+    //build initial uri and checksum maps
+    map<name, string> new_relative_uris;
+    map<name, string> new_checksums;
+
+    //TODO: calculate next_level formula
+    
+    //build default stats
+    map<name, uint32_t> intitial_stats = sch.default_stats;
+
+    //emplace new NFT
+    nfts.emplace(sch.issuer, [&](auto& col) {
+        col.serial = new_serial;
+        col.owner = to;
+        col.level = uint16_t(1);
+        col.experience = asset(0, sch.exp_symbol);
+        col.next_level = asset(1000, sch.exp_symbol);
+        col.unspent = uint8_t(0);
+        col.stats = intitial_stats;
+        col.relative_uris = new_relative_uris;
+        col.checksums = new_checksums;
+    });
+
+    //inline to lognft if true
+    if (log) {
+        //requires drealms@eosio.code on active perm
+        action(permission_level{get_self(), name("active")}, get_self(), name("lognft"), make_tuple(
+            to, //to
+            schema_name, //schema_name
+            new_serial //serial
+        )).send();
+    }
+
+    //notify recipient account
+    require_recipient(to);
+}
+
+ACTION drealms::retirenft(name schema_name, vector<uint64_t> serials, string memo) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //authenticate
+    require_auth(sch.issuer);
+
+    //validate
+    check(sch.settings.at(name("retirable")), "nft is not retirable");
+    check(sch.supply >= serials.size(), "cannot retire supply below 0");
+
+    //reduce nft supply
+    schemas.modify(sch, same_payer, [&](auto& col) {
+        col.supply -= serials.size();
+    });
+
+    //loop over each serial and erase nft
+    for (uint64_t serial : serials) {
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), schema_name.value);
+        auto& nft = nfts.get(serial, "nft not found");
+
+        //check that issuer owns each nft before retiring
+        check(nft.owner == sch.issuer, "only issuer may retire tokens");
+
+        //retire nft
+        nfts.erase(nft);
+    }
+}
+
+ACTION drealms::transfernft(name from, name to, name schema_name, vector<uint64_t> serials, string memo) {
+    //authenticate
+    require_auth(from);
+
+    //opens schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //validate
+    check(sch.settings.at(name("transferable")), "nft is not transferable");
+    check(is_account(to), "recipient account does not exist");
+
+    //loop over each serial and change ownership
+    for (uint64_t serial : serials) {
+        //open nfts table, get nft
+        nfts_table nfts(get_self(), schema_name.value);
+        auto& nft = nfts.get(serial, "nft not found");
+
+        //validate
+        check(from == nft.owner, "only nft owner is allowed to transfer");
+
+        //modify nft ownership to recipient
+        nfts.modify(nft, same_payer, [&](auto& col) {
+            col.owner = to;
+        });
+    }
+
+    //notify accounts
+    require_recipient(from);
+    require_recipient(to);
+}
+
+ACTION drealms::consumenft(name schema_name, uint64_t serial, string memo) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open nfts table, get nft
+    nfts_table nfts(get_self(), schema_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //authenticate
+    require_auth(nft.owner);
+
+    //validate
+    check(sch.settings.at(name("consumable")), "nft is not consumable");
+
+    //decrement nft supply
+    schemas.modify(sch, same_payer, [&](auto& col) {
+        col.supply -= uint64_t(1);
+    });
+
+    //consume nft
+    nfts.erase(nft);
+}
+
+ACTION drealms::activatenft(name schema_name, uint64_t serial, string memo) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open nfts table, get nft
+    nfts_table nfts(get_self(), schema_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //authenticate
+    require_auth(nft.owner);
+
+    //validate
+    check(sch.settings.at(name("activatable")), "nft is not activatable");
+}
+
+ACTION drealms::newchecksum(name schema_name, name license_owner, uint64_t serial, string new_checksum) {
+    //open schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open licenses table, get license
+    licenses_table licenses(get_self(), schema_name.value);
+    auto& lic = licenses.get(license_owner.value, "license not found");
+
+    //authenticate
+    require_auth(lic.owner);
+
+    //open nft table, get nft
+    nfts_table nfts(get_self(), schema_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //modify nft relative uri
+    nfts.modify(nft, same_payer, [&](auto& col) {
+        col.checksums[license_owner] = new_checksum;
+    });
+}
+
+ACTION drealms::lognft(name to, name schema_name, uint64_t serial) {
+    //authenticate
+    require_recipient(get_self());
+}
+
+ACTION drealms::levelup(name schema_name, uint64_t serial) {
+    //opens schemas table, get schema
+    schemas_table schemas(get_self(), get_self().value);
+    auto& sch = schemas.get(schema_name.value, "schema not found");
+
+    //open nfts table, get nft
+    nfts_table nfts(get_self(), schema_name.value);
+    auto& nft = nfts.get(serial, "nft not found");
+
+    //authenticate
+    require_auth(nft.owner);
+
+    //TODO: calculate next level cost
+    // asset level_up_cost = ...
+
+    //validate
+    // check(); //check nft has enought points to level up
+
+    //level up nft
+    nfts.modify(nft, same_payer, [&](auto& col) {
+        col.level += 1;
+        // col.experience -= level_up_cost;
+        col.unspent += 1;
+    });
 }
 
 //======================== fungible actions ========================
