@@ -10,7 +10,11 @@ dRealms™ is a cross-game standard for creating tokenized game assets for EOSIO
 
 * `Nonfungible and Fungible Tokens`
 
-    The dRealms standard offers highly customizable fungible and nonfungible tokens. In addition to the immortal tokens common to most true ownership tokens, dRealms Token Families can be retirable, transferable, or consumable, or any combination thereof.
+    The dRealms standard offers highly customizable fungible and nonfungible tokens. In addition to the immortal tokens common to most true ownership tokens, dRealms Token Schemas can be retirable, transferable, or consumable, activatable, or any combination thereof.
+
+* `Common Stat Blocks`
+
+    dRealms handles game asset progression across multiple games, meaning a player's progress in one game doesn't conflict with progress made in another game - they are complimentary. Games award experience directly to NFTs through legitimate gameplay, which can then be spent by the NFT owner to level up the asset or held onto for later. Experience belongs to the NFT, so if a player decides to sell their NFT on a dRealms Marketplace all experience will travel with the game asset.
 
 * `Lightweight and Scalable Design`
 
